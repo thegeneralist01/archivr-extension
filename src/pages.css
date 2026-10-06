@@ -1,0 +1,168 @@
+/* System serif fallbacks keep all extension assets local. */
+.extension-page {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 64px 52px;
+  color: var(--ink);
+}
+.extension-page header {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 60px;
+}
+.extension-page header img {
+  width: 52px;
+  height: 52px;
+}
+.wordmark {
+  font:
+    40px Georgia,
+    serif;
+  letter-spacing: -1px;
+}
+.wordmark span {
+  display: block;
+  font:
+    12px Arial,
+    sans-serif;
+  letter-spacing: 0.04em;
+  margin-top: 8px;
+  color: var(--muted);
+}
+.extension-page h1 {
+  font:
+    36px Georgia,
+    serif;
+  margin: 0 0 18px;
+}
+.extension-page p {
+  line-height: 1.7;
+}
+.extension-page label {
+  display: block;
+  margin: 28px 0 10px;
+  font-weight: 600;
+}
+.connect-row {
+  display: flex;
+  gap: 10px;
+}
+.extension-page input {
+  min-width: 0;
+  flex: 1;
+}
+.extension-page input,
+.extension-page select {
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--field);
+  color: var(--ink);
+  font-size: 15px;
+}
+.extension-page select {
+  width: 100%;
+}
+.extension-page button {
+  padding: 12px 20px;
+  cursor: pointer;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--paper-3);
+  color: var(--ink);
+  font-weight: 600;
+}
+.extension-page button.primary {
+  background: var(--accent);
+  color: var(--paper-3);
+  border-color: var(--accent);
+}
+.extension-page button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.extension-page .hint,
+.extension-page footer {
+  font-size: 12px;
+  color: var(--muted);
+}
+.extension-page footer {
+  margin-top: 54px;
+  border-top: 1px solid var(--line);
+  padding-top: 20px;
+}
+.extension-page .button-row {
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+}
+.extension-page .error {
+  color: var(--accent);
+  padding: 12px;
+  border-left: 3px solid var(--accent);
+}
+.extension-page .notice {
+  background: var(--paper-2);
+  padding: 14px;
+}
+.extension-page .recent {
+  margin-top: 38px;
+}
+.extension-page h2 {
+  font:
+    22px Georgia,
+    serif;
+}
+.extension-page .job {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  border-top: 1px solid var(--line-soft);
+  padding: 12px 0;
+}
+.job small {
+  color: var(--muted);
+  max-width: 65%;
+  text-align: right;
+}
+.extension-page.popup {
+  width: 360px;
+  padding: 24px;
+  margin: 0;
+}
+.popup header {
+  margin-bottom: 24px;
+}
+.popup header img {
+  width: 36px;
+  height: 36px;
+}
+.popup .wordmark {
+  font-size: 30px;
+}
+.popup .wide {
+  width: 100%;
+  margin: 8px 0;
+}
+.popup footer {
+  margin-top: 20px;
+}
+.extension-page .text-button {
+  border: 0;
+  background: none;
+  padding: 10px 0;
+  text-decoration: underline;
+}
+.muted {
+  color: var(--muted);
+}
+@media (max-width: 600px) {
+  .extension-page {
+    padding: 32px 24px;
+  }
+  .connect-row,
+  .button-row {
+    flex-direction: column;
+  }
+}
