@@ -14,7 +14,8 @@ export type MessageFields = {
   GET_DRAFT: { key: string };
   CAPTURE_CONTEXT: undefined;
   OPEN_TARGET: { url: string };
-  CONTEXT_TARGET: { url: string };
+  CONTEXT_TARGET: { url?: string };
+  GET_CONTEXT_TARGET: undefined;
   API: { method: ApiMethod; args: unknown[] };
 };
 export type ExtensionMessage = {

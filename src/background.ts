@@ -12,6 +12,7 @@ import {
   isPending,
   type Job,
 } from "./core";
+import { contextSnapshotForPage, xMenuLocator } from "./site-targets";
 type Config = {
   origin: string;
   token: string;
@@ -35,7 +36,6 @@ const ready = (async () => {
 })();
 let pairingFlight: Promise<any> | null = null;
 let jobQueue: Promise<any> = Promise.resolve();
-const contexts = new Map<number, { url: string; at: number }>();
 async function state() {
   await ready;
   return store.get(["config", "pairing", "jobs", "drafts"]);
@@ -571,19 +571,9 @@ async function handle(message: any, sender: chrome.runtime.MessageSender) {
       return { archiveId: config.archiveId };
     }
     case "CONTEXT_TARGET":
-      contexts.set(sender.tab!.id!, { url: message.url, at: Date.now() });
-      try {
-        const target = routeTarget(message.url);
-        const kind =
-          target.kind === "container"
-            ? target.locator.includes("/playlist?")
-              ? "playlist"
-              : "channel"
-            : "video";
-        await chrome.contextMenus.update("youtube-target", {
-          title: `Archive ${kind}`,
-        });
-      } catch {}
+      // Context snapshots stay in their content document, rather than in this
+      // short-lived worker. This legacy notification intentionally carries no
+      // capture state and is retained for compatibility with prior scripts.
       return null;
     case "OPEN_TARGET": {
       await captureTarget(sender.tab!, message.url);
@@ -661,47 +651,34 @@ async function setupMenus() {
     contexts: ["page"],
     documentUrlPatterns: ["http://*/*", "https://*/*"],
   });
+  const xPagePatterns = [
+    "*://x.com/*",
+    "*://*.x.com/*",
+    "*://twitter.com/*",
+    "*://*.twitter.com/*",
+  ];
+  for (const action of [
+    { id: "tweet", title: "Archive Tweet" },
+    { id: "thread", title: "Archive Thread" },
+  ] as const) {
+    chrome.contextMenus.create({
+      id: `x-${action.id}`,
+      title: action.title,
+      contexts: ["page", "link", "image", "video"],
+      documentUrlPatterns: xPagePatterns,
+    });
+  }
   chrome.contextMenus.create({
     id: "selection",
     title: "Archive selected text",
     contexts: ["selection"],
     documentUrlPatterns: ["http://*/*", "https://*/*"],
   });
-  for (const kind of ["video", "playlist", "channel"]) {
-    const targets =
-      kind === "video"
-        ? [
-            "*://*.youtube.com/watch*",
-            "*://*.youtube.com/shorts/*",
-            "*://*.youtube.com/live/*",
-            "*://youtu.be/*",
-          ]
-        : kind === "playlist"
-          ? ["*://*.youtube.com/playlist*"]
-          : [
-              "*://*.youtube.com/@*",
-              "*://*.youtube.com/channel/*",
-              "*://*.youtube.com/c/*",
-              "*://*.youtube.com/user/*",
-            ];
-    chrome.contextMenus.create({
-      id: `youtube-link-${kind}`,
-      title: `Archive ${kind}`,
-      contexts: ["link"],
-      targetUrlPatterns: targets,
-    });
-    chrome.contextMenus.create({
-      id: `youtube-page-${kind}`,
-      title: `Archive ${kind}`,
-      contexts: ["page"],
-      documentUrlPatterns: targets,
-    });
-  }
   chrome.contextMenus.create({
     id: "youtube-target",
-    title: "Archive video",
-    contexts: ["image", "video"],
-    documentUrlPatterns: ["*://*.youtube.com/*"],
+    title: "Archive with Archivr",
+    contexts: ["page", "link", "image", "video"],
+    documentUrlPatterns: ["*://youtube.com/*", "*://*.youtube.com/*", "*://youtu.be/*"],
   });
 }
 chrome.runtime.onInstalled.addListener((details) => {
@@ -709,15 +686,45 @@ chrome.runtime.onInstalled.addListener((details) => {
   if (details.reason === "install")
     chrome.tabs.create({ url: chrome.runtime.getURL("app.html") });
 });
-chrome.contextMenus.onClicked.addListener((info, tab) => {
+async function contextFromTab(tab: chrome.tabs.Tab) {
+  if (!tab.id || !tab.url) return undefined;
+  try {
+    const snapshot = await chrome.tabs.sendMessage(tab.id, {
+      type: "GET_CONTEXT_TARGET",
+    });
+    return contextSnapshotForPage(snapshot, tab.url);
+  } catch {
+    return undefined;
+  }
+}
+async function handleMenuClick(
+  info: chrome.contextMenus.OnClickData,
+  tab?: chrome.tabs.Tab,
+) {
   if (!tab) return;
-  const remembered = contexts.get(tab.id!);
+  const snapshot = await contextFromTab(tab);
+  const xMenu = /^x-(tweet|thread)$/.exec(String(info.menuItemId));
+  if (xMenu) {
+    const intent = xMenu[1] as "tweet" | "thread";
+    // info.linkUrl is Chrome's authoritative URL for an intentional status
+    // permalink. Other click targets use the post resolved in the document.
+    const locator = xMenuLocator(intent, info.linkUrl, snapshot);
+    if (!locator) {
+      fallback(
+        [{ locator: "" }],
+        "Right-click a post, its action row, or its timestamp/link to archive a Tweet or Thread.",
+      ).catch(() => {});
+      return;
+    }
+    captureTarget(tab, locator).catch(() => {});
+    return;
+  }
   let clicked = info.linkUrl;
   try {
     clicked = menuTarget(
       tab.url || "",
       info.linkUrl,
-      remembered,
+      snapshot,
       Date.now(),
       info.menuItemId === "youtube-target",
     ).locator;
@@ -727,6 +734,9 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
     clicked,
     info.menuItemId === "selection" ? info.selectionText : undefined,
   ).catch(() => {});
+}
+chrome.contextMenus.onClicked.addListener((info, tab) => {
+  handleMenuClick(info, tab).catch(() => {});
 });
 ready.then(async () => {
   await badge();

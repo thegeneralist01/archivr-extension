@@ -31,6 +31,9 @@ export function routeTarget(
   page: string,
   clicked?: string,
 ): { kind: "url" | "container"; locator: string } {
+  const shorthand = clicked || page;
+  if (/^x:(?:tweet|thread):\d+$/i.test(shorthand))
+    return { kind: "url", locator: shorthand };
   const url = new URL(clicked || page);
   if (
     !["http:", "https:"].includes(url.protocol) ||
@@ -126,9 +129,15 @@ export function authorizeMessage(
       API_METHODS.includes(message.method) &&
       Array.isArray(message.args)
     );
-  if (["OPEN_TARGET", "CONTEXT_TARGET"].includes(message.type))
+  if (message.type === "OPEN_TARGET")
     return (
       content && typeof message.url === "string" && message.url.length <= 10000
+    );
+  if (message.type === "CONTEXT_TARGET")
+    return (
+      content &&
+      (message.url === undefined ||
+        (typeof message.url === "string" && message.url.length <= 10000))
     );
   if (["CAPTURE_CONTEXT", "OPEN_ARCHIVR"].includes(message.type) && content)
     return true;
@@ -196,7 +205,7 @@ export function validateText(body: unknown) {
 export function menuTarget(
   page: string,
   link?: string,
-  context?: { url: string; at: number },
+  context?: { url?: string; at: number },
   now = Date.now(),
   useContext = false,
 ) {

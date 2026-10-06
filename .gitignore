@@ -3,3 +3,4 @@ dist/
 artifacts/
 *.zip
 .env.local
+.DS_Store

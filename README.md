@@ -47,17 +47,17 @@ If token creation is interrupted, the extension does not mint another token auto
 
 - Use **Archive this page** in the toolbar popup or the page context menu for ordinary HTTP/HTTPS pages.
 - Select text and choose **Archive selected text**. Its first nonempty line becomes an editable title, capped at 80 characters; its plain-text body remains editable. AI title generation is available only when manually requested.
-- X/Twitter posts have an **Archive** button beside their action row. It uses that post’s own timestamp permalink, including on detail pages. The observer follows SPA changes and reads the current identity again when clicked.
-- YouTube videos have Archive controls, and link/page context menus offer **Archive video**, **Archive playlist**, or **Archive channel**. A clicked link or thumbnail wins over the current page. Video captures use a canonical `watch?v=…` URL with playlist parameters removed; Shorts and `youtu.be` links are supported.
+- X/Twitter uses native right-click menus only: **Archive Tweet** and **Archive Thread**. Right-click a post body, action row, timestamp, image, video, or link. Media and ordinary links use their containing post’s own timestamp permalink; an intentional status-link click uses that link, including a quoted post. A feed/background click without a post opens a helpful capture message instead of guessing a status.
+- On YouTube, choose **Archive with Archivr** in the native right-click menu. A clicked link, thumbnail, or video-card metadata wins over the current page; a background click uses the current video, playlist, or channel. Video captures use a canonical `watch?v=…` URL with playlist parameters removed; Shorts and `youtu.be` links are supported.
 - Playlists and channels open Archivr with the capture dialog prefilled, allowing review of the container’s options and video list before submitting. They are never submitted automatically.
 
-The in-page dialog renders inside a ShadowRoot, using scoped Archivr styles and local font fallbacks. Generic sites receive the content script only after a user action through `activeTab`; X and YouTube have persistent host permissions for their controls. The extension does not copy a site’s cookies or transfer its live DOM. Files cannot be uploaded through extension v1; use Archivr’s server UI for file captures.
+The in-page dialog renders inside a ShadowRoot, using scoped Archivr styles and local font fallbacks. Generic sites receive the content script only after a user action through `activeTab`; X and YouTube have persistent host permissions for resolving right-click targets. The extension does not copy a site’s cookies or transfer its live DOM. Files cannot be uploaded through extension v1; use Archivr’s server UI for file captures.
 
 Chrome blocks injection on its internal pages, the Chrome Web Store, and some protected viewers. The extension opens a capture tab with a helpful message when injection is unavailable. Paste a supported URL there. A container capture still needs access to the configured server.
 
 Capture jobs are stored with their server origin and archive. The service worker uses alarms to poll after the dialog/tab closes or the worker restarts. The toolbar badge, popup’s recent captures, and in-tab notifications show progress or errors. **Open in Archivr** opens the configured archive. Running jobs remain associated with their original archive if you change the default.
 
-Chrome has no `contextMenus.onShown` event. Static target/document URL filters choose the normal YouTube menu items; an isolated pre-context pointer target updates the image/video label where Chrome permits it. Menu dispatch independently resolves the exact clicked target, with page identity only as a fallback.
+Static document URL filters expose the X and YouTube menus. The content script records a short-lived right-click snapshot in the document. Menu dispatch asks the clicked tab for that snapshot and checks its age and exact page URL, so worker suspension does not discard the target and navigation cannot reuse an earlier page’s target. Every background click replaces the previous snapshot; Chrome’s explicit status-link URL remains authoritative.
 
 ## Smoke checks
 
@@ -67,11 +67,11 @@ Use a disposable archive and a current server:
 2. Log in to an account without the User role: pairing must refuse capture. Log in to a User account: exactly one extension token should appear. Reload the onboarding tab during polling and verify it does not mint another token.
 3. Choose a non-default archive on a multi-archive server. Capture a normal page. Check the capture in that archive and verify popup status updates.
 4. Select multiline Unicode text. Confirm the first nonempty line becomes the title and that body editing and manual title generation work. Capture without AI generation too.
-5. On X, test a timeline post, detail post, quoted post, and a recycled row after SPA navigation. Ensure the outer post’s URL is captured.
+5. On X, right-click a timeline post, detail post, quoted post, action row, timestamp, and an exact status link. Verify **Archive Tweet** uses the intended tweet and **Archive Thread** uses the same ID as a thread; after a post click, right-click the feed background and confirm it does not reuse the stale post.
 6. On YouTube, right-click a video on a channel or playlist page. Capture the clicked video only. Test a playlist/channel link, Shorts, and a `youtu.be` URL. Containers must open the prefilled server dialog without submitting.
 7. Start a capture, close the popup/dialog, then stop/restart the service worker from `chrome://extensions`. Verify the alarm resumes polling and the job settles.
 8. Revoke the extension token in Archivr and verify capture fails clearly; Disconnect should clear the revoked connection. Test offline Disconnect’s local-forget recovery separately.
 9. Test a `chrome://` page and the Web Store: the fallback capture tab should appear with a helpful message.
 10. Inspect content-script messages/storage: settings/token access must be denied, unknown API methods rejected, and all capture requests pinned to the selected archive/server.
 
-Automated Bun tests cover origin normalization, URL/container routing, selected text, sender roles and API allowlists, durable job identity, shorthand locator restrictions, and UTF-8 byte limits. Type checking and both Vite builds are part of the build verification; live Chrome checks are still needed for site DOM changes and permissions behavior.
+Automated Bun tests cover origin normalization, URL/container routing, native X/YouTube right-click target resolution (including quoted posts and stale state), selected text, sender roles and API allowlists, durable job identity, shorthand locator restrictions, and UTF-8 byte limits. Type checking and both Vite builds are part of the build verification; live Chrome checks are still needed for site DOM changes and permissions behavior.
