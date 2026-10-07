@@ -3,6 +3,7 @@ import {
   type ContextSnapshot,
   contextTargetFromElement,
 } from "./site-targets";
+import { installXVideoMenu } from "./x-video-menu";
 
 // A classic bundled script can be reinjected by activeTab; keep exactly one listener set.
 if (!(globalThis as any).__archivrInstalled) {
@@ -33,6 +34,7 @@ if (!(globalThis as any).__archivrInstalled) {
   const isYoutube =
     /(^|\.)youtube\.com$/.test(location.hostname) ||
     location.hostname === "youtu.be";
+  const xVideoMenu = isX ? installXVideoMenu() : undefined;
 
   // Keep the target in the document so a restarted service worker can ask the
   // clicked tab for it. A background click deliberately stores the page target.
@@ -50,6 +52,7 @@ if (!(globalThis as any).__archivrInstalled) {
           page: location.href,
           at: Date.now(),
         };
+        if (isX) xVideoMenu?.observe(event, contextSnapshot);
       },
       true,
     );

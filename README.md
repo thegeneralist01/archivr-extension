@@ -19,6 +19,15 @@ bun run typecheck
 bun run build
 ```
 
+The X custom-menu browser regression suite is separate because it builds `dist`
+first and needs a Playwright Chromium binary. Run it explicitly (or run every
+suite) with:
+
+```sh
+bunx playwright install chromium
+bun run test:browser # or: bun run test:all
+```
+
 Open `chrome://extensions`, enable **Developer mode**, choose **Load unpacked**, and select this repository’s `dist` directory. The welcome page opens on first installation. After a rebuild, use **Reload** on the extension card, then reload any X or YouTube tabs.
 
 An alternate shared frontend source directory is supported:
@@ -47,8 +56,8 @@ If token creation is interrupted, the extension does not mint another token auto
 
 - Use **Archive this page** in the toolbar popup or the page context menu for ordinary HTTP/HTTPS pages.
 - Select text and choose **Archive selected text**. Its first nonempty line becomes an editable title, capped at 80 characters; its plain-text body remains editable. AI title generation is available only when manually requested.
-- X/Twitter uses native right-click menus only: **Archive Tweet**, **Archive this thread**, and (on an actual video player) **Archive video**. Timeline, notification, detail, reply, and OldTwitter-style `div.tweet[data-tweet-id]` layouts are supported; viewer rows without that data attribute use their own `.tweet-time` permalink. Right-click a post body, action row, timestamp, image, video, or link. Media and ordinary links use their containing post’s own timestamp permalink; an explicit quoted-post timestamp/link uses the quoted post. A feed/background or ambiguous notification click does not guess a status.
-- **Archive video** is offered only for an X video/player target and captures `x:media:<tweet-id>`. Pictures, avatars, post text/actions, external media, and arbitrary site video controls do not receive a video capture action. Quoted video uses the quoted tweet’s ID. Tweet and thread actions remain available on X images and videos; selected text and YouTube controls keep their normal menus.
+- X/Twitter uses Chrome’s native right-click menus for **Archive Tweet**, **Archive this thread**, and (on an actual video player) **Archive video**. Some current X video players suppress Chrome’s menu and render their own menu instead; after that exact video click, Archivr adds one temporary **Archive video** action to X’s English `Dropdown` menu when its direct video rows are **Copy video address**, **Copy link at current time**, and **Post Video**. Other languages or changed menu wording do not receive this temporary action. It does not add permanent page buttons or change an unsuppressed native menu. Timeline, notification, detail, reply, and OldTwitter-style `div.tweet[data-tweet-id]` layouts are supported; viewer rows without that data attribute use their own `.tweet-time` permalink. Right-click a post body, action row, timestamp, image, video, or link. Media and ordinary links use their containing post’s own timestamp permalink; an explicit quoted-post timestamp/link uses the quoted post. A feed/background or ambiguous notification click does not guess a status.
+- **Archive video** is offered only for an X video/player target and captures `x:media:<tweet-id>`. Pictures, avatars, post text/actions, external media, arbitrary site video controls, and generic X menus do not receive a video capture action. Quoted video uses the quoted tweet’s ID. The temporary X-menu action validates the same fresh page and video owner again when clicked. Tweet and thread actions remain available on X images and videos; selected text and YouTube controls keep their normal menus.
 - On YouTube, choose **Archive with Archivr** in the native right-click menu. A clicked link, thumbnail, or video-card metadata wins over the current page; a background click uses the current video, playlist, or channel. Video captures use a canonical `watch?v=…` URL with playlist parameters removed; Shorts and `youtu.be` links are supported.
 - Playlists and channels open Archivr with the capture dialog prefilled, allowing review of the container’s options and video list before submitting. They are never submitted automatically.
 
@@ -68,7 +77,7 @@ Use a disposable archive and a current server:
 2. Log in to an account without the User role: pairing must refuse capture. Log in to a User account: exactly one extension token should appear. Reload the onboarding tab during polling and verify it does not mint another token.
 3. Choose a non-default archive on a multi-archive server. Capture a normal page. Check the capture in that archive and verify popup status updates.
 4. Select multiline Unicode text. Confirm the first nonempty line becomes the title and that body editing and manual title generation work. Capture without AI generation too.
-5. On X, right-click timeline/notification posts, thread replies, detail/quoted posts, action rows, timestamps, and exact status links. Test both native X and OldTwitter layouts. Right-click an actual video and verify **Archive video** opens `x:media:ID`; repeat on a poster image/avatar and ensure this option is absent. Verify **Archive Tweet** uses the intended tweet and **Archive this thread** uses the same ID as a thread; after a post click, right-click the feed background and confirm it does not reuse the stale post.
+5. On X, right-click timeline/notification posts, thread replies, detail/quoted posts, action rows, timestamps, and exact status links. Test both native X and OldTwitter layouts. Right-click an actual video and verify **Archive video** opens `x:media:ID`; on X’s custom video menu, confirm exactly one temporary **Archive video** action appears beside video-specific commands and uses the quoted owner when applicable. Repeat on a poster image/avatar and ensure this option is absent. Verify **Archive Tweet** uses the intended tweet and **Archive this thread** uses the same ID as a thread; after a post click, right-click the feed background and confirm it does not reuse the stale post.
 6. On YouTube, right-click a video on a channel or playlist page. Capture the clicked video only. Test a playlist/channel link, Shorts, and a `youtu.be` URL. Containers must open the prefilled server dialog without submitting.
 7. Start a capture, close the popup/dialog, then stop/restart the service worker from `chrome://extensions`. Verify the alarm resumes polling and the job settles.
 8. Revoke the extension token in Archivr and verify capture fails clearly; Disconnect should clear the revoked connection. Test offline Disconnect’s local-forget recovery separately.
