@@ -58,6 +58,7 @@ test("trusted right-click sees a bubble-cancelled X Dropdown, preserves its thre
     expect(await page.locator('[data-archivr-video-menu] img').getAttribute("src")).toBe("chrome-extension://fixture/logo-mark.svg");
     expect(await page.locator('[data-archivr-video-menu] img').getAttribute("aria-hidden")).toBe("true");
     expect(await page.locator('[data-archivr-video-menu] img').evaluate((image: HTMLImageElement) => ({ height: image.style.height, aspectRatio: image.style.aspectRatio, margin: image.style.margin }))).toEqual({ height: "1.5em", aspectRatio: "1 / 1", margin: "auto 0.5em auto 0px" });
+    expect(await page.locator('[data-archivr-video-menu] > span').evaluate((label: HTMLSpanElement) => label.style.margin)).toBe("auto 0px");
     await page.getByRole("menuitem", { name: "Archive video" }).click();
     await page.waitForFunction(() => (window as any).__archivrMessages.length === 1);
     expect(await page.evaluate(() => (window as any).__archivrMessages)).toEqual([{ type: "OPEN_TARGET", url: "x:media:999999999999999999" }]);

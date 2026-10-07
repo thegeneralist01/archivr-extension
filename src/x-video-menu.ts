@@ -117,7 +117,10 @@ export function installXVideoMenu() {
     logo.style.margin = "auto 0.5em auto 0";
     logo.style.flex = "0 0 auto";
     logo.style.objectFit = "cover";
-    action.append(logo, document.createTextNode("Archive video"));
+    const label = document.createElement("span");
+    label.style.margin = "auto 0";
+    label.textContent = "Archive video";
+    action.append(logo, label);
     const activate = () => {
       if (session.activating || session.disposed || active !== session ||
           action.parentElement !== menu || !visible(menu) || !visible(action) || !menuCandidate(menu)) return;
