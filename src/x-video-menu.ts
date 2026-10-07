@@ -24,6 +24,7 @@ type MenuSession = {
   discoveryTimer: number;
   lifetimeTimer: number;
   afterEventTimer: number;
+  reconcileTimer?: number;
   navigationTimer?: number;
   menu?: HTMLElement;
   action?: HTMLElement;
@@ -71,6 +72,7 @@ export function installXVideoMenu() {
     clearTimeout(session.discoveryTimer);
     clearTimeout(session.lifetimeTimer);
     clearTimeout(session.afterEventTimer);
+    if (session.reconcileTimer) clearInterval(session.reconcileTimer);
     if (session.navigationTimer) clearInterval(session.navigationTimer);
     session.pending.length = 0;
     session.action?.remove();
@@ -109,13 +111,11 @@ export function installXVideoMenu() {
     logo.src = chrome.runtime.getURL("logo-mark.svg");
     logo.alt = "";
     logo.setAttribute("aria-hidden", "true");
-    logo.width = 16;
-    logo.height = 16;
-    logo.style.width = "16px";
-    logo.style.height = "16px";
+    logo.style.height = "1.5em";
+    logo.style.aspectRatio = "1 / 1";
     logo.style.borderRadius = "4px";
-    logo.style.marginRight = "8px";
-    logo.style.verticalAlign = "middle";
+    logo.style.margin = "auto 0.5em auto 0";
+    logo.style.flex = "0 0 auto";
     logo.style.objectFit = "cover";
     action.append(logo, document.createTextNode("Archive video"));
     const activate = () => {
@@ -147,6 +147,36 @@ export function installXVideoMenu() {
     }, 250);
   };
 
+  const reconcile = (session: MenuSession) => {
+    if (session.disposed) return;
+    if (location.href !== session.page) {
+      dispose(session);
+      return;
+    }
+    if (session.menu && !session.menu.isConnected) {
+      session.menu = undefined;
+      session.action = undefined;
+    }
+    if (session.menu && !visible(session.menu)) {
+      dispose(session);
+      return;
+    }
+    if (session.menu && !menuCandidate(session.menu)) {
+      dispose(session);
+      return;
+    }
+    if (session.action && session.action.isConnected && session.action.parentElement === session.menu)
+      return;
+    session.action = undefined;
+    for (const menu of document.querySelectorAll('[data-testid="Dropdown"]')) {
+      const items = menuCandidate(menu);
+      if (menu instanceof HTMLElement && items && visible(menu)) {
+        addAction(session, menu, items);
+        return;
+      }
+    }
+  };
+
   const inspect = (session: MenuSession, element: Element) => {
     if (session.disposed || session.action || element.closest("[data-archivr-video-menu]")) return;
     const candidate = candidateNear(element);
@@ -161,10 +191,7 @@ export function installXVideoMenu() {
   };
 
   const lifecycleChanged = (session: MenuSession) => {
-    const { menu, action } = session;
-    if (location.href !== session.page || !menu || !action || !visible(menu) ||
-        action.parentElement !== menu || !visible(action) || !menuCandidate(menu))
-      dispose(session);
+    reconcile(session);
   };
 
   const observe = (event: MouseEvent, snapshot: ContextSnapshot) => {
@@ -203,6 +230,7 @@ export function installXVideoMenu() {
       }
     });
     session.observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["hidden", "aria-hidden", "style"] });
+    session.reconcileTimer = window.setInterval(() => reconcile(session), 100);
     // Capture runs before X's bubble handler. A task runs after the event
     // dispatch completes, so a trusted right-click can be cancelled by X.
     session.afterEventTimer = window.setTimeout(() => {

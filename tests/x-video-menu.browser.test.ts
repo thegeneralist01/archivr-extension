@@ -57,6 +57,7 @@ test("trusted right-click sees a bubble-cancelled X Dropdown, preserves its thre
     expect(await menuItems(page)).toEqual(["Copy video address", "Archive video", "Copy link at current time", "Post Video"]);
     expect(await page.locator('[data-archivr-video-menu] img').getAttribute("src")).toBe("chrome-extension://fixture/logo-mark.svg");
     expect(await page.locator('[data-archivr-video-menu] img').getAttribute("aria-hidden")).toBe("true");
+    expect(await page.locator('[data-archivr-video-menu] img').evaluate((image: HTMLImageElement) => ({ height: image.style.height, aspectRatio: image.style.aspectRatio, margin: image.style.margin }))).toEqual({ height: "1.5em", aspectRatio: "1 / 1", margin: "auto 0.5em auto 0px" });
     await page.getByRole("menuitem", { name: "Archive video" }).click();
     await page.waitForFunction(() => (window as any).__archivrMessages.length === 1);
     expect(await page.evaluate(() => (window as any).__archivrMessages)).toEqual([{ type: "OPEN_TARGET", url: "x:media:999999999999999999" }]);
@@ -97,6 +98,15 @@ test("poster right-clicks and non-Dropdown text never receive an action", async 
 
 test("removes its action when the same Dropdown is hidden or replaced, without reappearing", async () => {
   await withXPage(async (page) => { await installVideoMenu(page); await page.evaluate(() => { (document.querySelector('[data-testid="Dropdown"]') as HTMLElement).hidden = true; }); await expectActionCount(page, 0); await page.evaluate(() => { const menu = document.querySelector('[data-testid="Dropdown"]') as HTMLElement; menu.hidden = false; menu.innerHTML = '<div role="menuitem">Copy video address</div><div role="menuitem">Copy link at current time</div><div role="menuitem">Post Video</div>'; }); await page.waitForTimeout(40); await expectActionCount(page, 0); });
+});
+
+test("restores the action when X rerenders it out of the open Dropdown", async () => {
+  await withXPage(async (page) => {
+    await installVideoMenu(page);
+    await page.evaluate(() => document.querySelector('[data-archivr-video-menu]')!.remove());
+    await expectActionCount(page, 1);
+    expect(await menuItems(page)).toEqual(["Copy video address", "Archive video", "Copy link at current time", "Post Video"]);
+  });
 });
 
 test("dismissed action references cannot dispatch and SPA navigation removes the action", async () => {
