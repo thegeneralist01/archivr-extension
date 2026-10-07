@@ -12,7 +12,11 @@ import {
   isPending,
   type Job,
 } from "./core";
-import { contextSnapshotForPage, xMenuLocator } from "./site-targets";
+import {
+  contextSnapshotForPage,
+  xMediaMenuLocator,
+  xMenuLocator,
+} from "./site-targets";
 type Config = {
   origin: string;
   token: string;
@@ -659,7 +663,7 @@ async function setupMenus() {
   ];
   for (const action of [
     { id: "tweet", title: "Archive Tweet" },
-    { id: "thread", title: "Archive Thread" },
+    { id: "thread", title: "Archive this thread" },
   ] as const) {
     chrome.contextMenus.create({
       id: `x-${action.id}`,
@@ -668,6 +672,12 @@ async function setupMenus() {
       documentUrlPatterns: xPagePatterns,
     });
   }
+  chrome.contextMenus.create({
+    id: "x-media",
+    title: "Archive video",
+    contexts: ["video"],
+    documentUrlPatterns: xPagePatterns,
+  });
   chrome.contextMenus.create({
     id: "selection",
     title: "Archive selected text",
@@ -713,6 +723,21 @@ async function handleMenuClick(
       fallback(
         [{ locator: "" }],
         "Right-click a post, its action row, or its timestamp/link to archive a Tweet or Thread.",
+      ).catch(() => {});
+      return;
+    }
+    captureTarget(tab, locator).catch(() => {});
+    return;
+  }
+  if (info.menuItemId === "x-media") {
+    // The browser's video context is necessary but not sufficient: a fresh
+    // document-held snapshot proves this exact right-click had an X video
+    // owner, preventing an old player target from leaking into a later click.
+    const locator = info.mediaType === "video" ? xMediaMenuLocator(snapshot) : undefined;
+    if (!locator) {
+      fallback(
+        [{ locator: "" }],
+        "Right-click an X video player to archive that video.",
       ).catch(() => {});
       return;
     }

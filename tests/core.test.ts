@@ -57,6 +57,13 @@ test("clicked videos override playlist page and strip video lists", () => {
   });
   expect(() => routeTarget("chrome://extensions")).toThrow();
 });
+test("X media shorthand reaches the normal URL capture route", () => {
+  expect(routeTarget("https://x.com/home", "x:media:2107253221244715130")).toEqual({
+    kind: "url",
+    locator: "x:media:2107253221244715130",
+  });
+  expect(() => routeTarget("https://x.com/home", "x:media:not-an-id")).toThrow();
+});
 test("selected plain text preserves body and uses first nonempty line title", () => {
   expect(selectionItem("\n  Hello   world\nsecond")).toEqual({
     kind: "text",

@@ -4,7 +4,9 @@ import {
   tweetStatus,
   tweetTargetFromElement,
   nativeContextTarget,
+  mediaTargetFromElement,
   xMenuLocator,
+  xMediaMenuLocator,
   youtubeTargetFromElement,
   contextSnapshotForPage,
 } from "../src/site-targets";
@@ -38,6 +40,23 @@ class FixtureElement {
     if (selector === "time") return this.tag === "time";
     if (selector === 'article[data-testid="tweet"]')
       return this.tag === "article" && this.attrs["data-testid"] === "tweet";
+    if (selector === "div.tweet")
+      return this.tag === "div" && (this.attrs.class || "").split(/\s+/).includes("tweet");
+    if (selector === "video") return this.tag === "video";
+    if (selector === "img") return this.tag === "img";
+    if (selector === "picture") return this.tag === "picture";
+    if (selector === '[data-testid="videoPlayer"]')
+      return this.attrs["data-testid"] === "videoPlayer";
+    if (selector === '[data-testid="videoComponent"]')
+      return this.attrs["data-testid"] === "videoComponent";
+    if (selector === ".tweet-media-video-overlay")
+      return (this.attrs.class || "").split(/\s+/).includes("tweet-media-video-overlay");
+    if (selector === ".tweet-media")
+      return (this.attrs.class || "").split(/\s+/).includes("tweet-media");
+    if (selector === ".tweet-body-quote")
+      return (this.attrs.class || "").split(/\s+/).includes("tweet-body-quote");
+    if (selector === ".tweet-time-quote")
+      return (this.attrs.class || "").split(/\s+/).includes("tweet-time-quote");
     if (
       [
         "ytd-rich-item-renderer",
@@ -152,6 +171,45 @@ test("native X menu actions route Tweet and Thread intents without numeric coerc
   ).toBe("x:thread:2107253221244715130");
 });
 
+test("Tweet and Thread actions reuse a fresh quoted-video snapshot's exact ID", () => {
+  const page = "https://x.com/home";
+  const videoSnapshot = {
+    url: "x:media:999999999999999999",
+    kind: "video" as const,
+    statusId: "999999999999999999",
+    page,
+    at: 900,
+  };
+  const snapshot = contextSnapshotForPage(videoSnapshot, page, 1000);
+
+  expect(xMenuLocator("tweet", undefined, snapshot, 1000)).toBe(
+    "x:tweet:999999999999999999",
+  );
+  expect(xMenuLocator("thread", undefined, snapshot, 1000)).toBe(
+    "x:thread:999999999999999999",
+  );
+  expect(
+    xMenuLocator(
+      "tweet",
+      undefined,
+      contextSnapshotForPage({ ...videoSnapshot, at: 0 }, page, 200000),
+      200000,
+    ),
+  ).toBeUndefined();
+  expect(
+    xMenuLocator(
+      "thread",
+      undefined,
+      contextSnapshotForPage(
+        { ...videoSnapshot, statusId: "2107253221244715130" },
+        page,
+        1000,
+      ),
+      1000,
+    ),
+  ).toBeUndefined();
+});
+
 test("a post action uses its own timestamp while an intentional status link wins", () => {
   const article = new FixtureElement("article", { "data-testid": "tweet" });
   const own = new FixtureElement("a", {
@@ -172,12 +230,120 @@ test("a post action uses its own timestamp while an intentional status link wins
     id: "2107253221244715130",
   });
   expect(tweetTargetFromElement(asElement(quote.children[0]!.children[0]!))).toEqual({
-    id: "2107253221244715130",
+    id: "999999999999999999",
   });
   expect(nativeContextTarget("x", "https://x.com/home", asElement(action))).toBe(
     "x:tweet:2107253221244715130",
   );
   expect(article.children).toHaveLength(childrenBefore);
+});
+
+test("OldTwitter notification rows use data-tweet-id without numeric coercion", () => {
+  const row = new FixtureElement("div", {
+    class: "tweet notification",
+    "data-tweet-id": "2107253221244715130",
+  }).add(new FixtureElement("div", { class: "tweet-body-text" }));
+  expect(tweetTargetFromElement(asElement(row.children[0]!))).toEqual({
+    id: "2107253221244715130",
+  });
+});
+
+test("OldTwitter viewer uses its own relative timestamp, not a quoted timestamp", () => {
+  const viewer = new FixtureElement("div", { class: "tweet tweet-view" });
+  const own = new FixtureElement(
+    "a",
+    { class: "tweet-time", href: "/owner/status/2107253221244715130" },
+    "https://x.com/owner/status/2107253221244715130",
+  ).add(new FixtureElement("time"));
+  const body = new FixtureElement("div", { class: "tweet-body-text" });
+  const quote = new FixtureElement("div", { class: "tweet-body-quote" }).add(
+    new FixtureElement(
+      "a",
+      { class: "tweet-time-quote", href: "/quoted/status/999999999999999999" },
+      "https://x.com/quoted/status/999999999999999999",
+    ).add(new FixtureElement("time")),
+  );
+  viewer.add(own, body, quote);
+  expect(tweetTargetFromElement(asElement(body))).toEqual({ id: "2107253221244715130" });
+  expect(tweetTargetFromElement(asElement(quote.children[0]!.children[0]!))).toEqual({
+    id: "999999999999999999",
+  });
+});
+
+test("a status link outside a tweet resolves only when it is the clicked link", () => {
+  const notification = new FixtureElement("div", { class: "notification" }).add(
+    new FixtureElement(
+      "a",
+      { href: "/owner/status/2107253221244715130" },
+      "https://x.com/owner/status/2107253221244715130",
+    ).add(new FixtureElement("span")),
+  );
+  expect(tweetTargetFromElement(asElement(notification.children[0]!.children[0]!))).toEqual({
+    id: "2107253221244715130",
+  });
+  expect(tweetTargetFromElement(asElement(notification))).toBeUndefined();
+});
+
+test("video capture requires an actual player and uses the quoted owner", () => {
+  const outer = new FixtureElement("article", { "data-testid": "tweet" }).add(
+    new FixtureElement("a", { href: "https://x.com/outer/status/2107253221244715130" }).add(new FixtureElement("time")),
+    new FixtureElement("img", { class: "tweet-avatar" }),
+    new FixtureElement("div", { "data-testid": "tweetPhoto" }).add(new FixtureElement("img")),
+    new FixtureElement("div", { role: "group" }),
+  );
+  const quote = new FixtureElement("div", { "data-testid": "quoteTweet" }).add(
+    new FixtureElement("a", { href: "https://x.com/quoted/status/999999999999999999" }).add(new FixtureElement("time")),
+    new FixtureElement("div", { "data-testid": "videoPlayer" }).add(new FixtureElement("video")),
+  );
+  outer.add(quote);
+  expect(mediaTargetFromElement(asElement(outer.children[1]!))).toBeUndefined();
+  expect(mediaTargetFromElement(asElement(outer.children[2]!.children[0]!))).toBeUndefined();
+  expect(mediaTargetFromElement(asElement(outer.children[3]!))).toBeUndefined();
+  expect(mediaTargetFromElement(asElement(quote.children[1]!.children[0]!))).toEqual({
+    id: "999999999999999999",
+  });
+  expect(nativeContextTarget("x", "https://x.com/home", asElement(quote.children[1]!.children[0]!))).toBe(
+    "x:media:999999999999999999",
+  );
+});
+
+test("poster pictures and images inside video wrappers are not video targets", () => {
+  const article = new FixtureElement("article", { "data-testid": "tweet" }).add(
+    new FixtureElement("a", {
+      href: "https://x.com/owner/status/2107253221244715130",
+    }).add(new FixtureElement("time")),
+    new FixtureElement("div", { "data-testid": "videoPlayer" }).add(
+      new FixtureElement("video"),
+      new FixtureElement("picture").add(new FixtureElement("img")),
+      new FixtureElement("img", { class: "poster" }),
+      new FixtureElement("div", { role: "slider" }),
+    ),
+    new FixtureElement("div", { "data-testid": "videoComponent" }).add(
+      new FixtureElement("video"),
+      new FixtureElement("img", { class: "poster" }),
+    ),
+    new FixtureElement("div", { class: "tweet-media-video-overlay" }).add(
+      new FixtureElement("video"),
+      new FixtureElement("div", { role: "slider" }),
+    ),
+  );
+  const player = article.children[1]!;
+  const component = article.children[2]!;
+  const overlay = article.children[3]!;
+
+  expect(mediaTargetFromElement(asElement(player.children[1]!))).toBeUndefined();
+  expect(mediaTargetFromElement(asElement(player.children[1]!.children[0]!))).toBeUndefined();
+  expect(mediaTargetFromElement(asElement(player.children[2]!))).toBeUndefined();
+  expect(mediaTargetFromElement(asElement(component.children[1]!))).toBeUndefined();
+  expect(nativeContextTarget("x", "https://x.com/home", asElement(player.children[1]!))).toBe(
+    "x:tweet:2107253221244715130",
+  );
+  expect(mediaTargetFromElement(asElement(player.children[3]!))).toEqual({
+    id: "2107253221244715130",
+  });
+  expect(mediaTargetFromElement(asElement(overlay.children[1]!))).toEqual({
+    id: "2107253221244715130",
+  });
 });
 
 test("X post media and ordinary links use the containing post instead of the link", () => {
@@ -275,4 +441,19 @@ test("only a fresh snapshot for the current document can replace page targeting"
     ).locator,
   ).toBe("https://www.youtube.com/@archivr");
   expect(contextSnapshotForPage({ page, at: "now" }, page, 1000)).toBeUndefined();
+});
+
+test("video menu requires a fresh matching video snapshot", () => {
+  const snapshot = {
+    url: "x:media:2107253221244715130",
+    kind: "video" as const,
+    statusId: "2107253221244715130",
+    page: "https://x.com/home",
+    at: 900,
+  };
+  expect(contextSnapshotForPage(snapshot, snapshot.page, 1000)).toEqual(snapshot);
+  expect(xMediaMenuLocator(snapshot, 1000)).toBe("x:media:2107253221244715130");
+  expect(xMediaMenuLocator({ ...snapshot, kind: "tweet" as const }, 1000)).toBeUndefined();
+  expect(xMediaMenuLocator(snapshot, 121000)).toBeUndefined();
+  expect(contextSnapshotForPage({ ...snapshot, statusId: "wrong" }, snapshot.page, 1000)).toBeUndefined();
 });

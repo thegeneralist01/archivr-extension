@@ -32,7 +32,7 @@ export function routeTarget(
   clicked?: string,
 ): { kind: "url" | "container"; locator: string } {
   const shorthand = clicked || page;
-  if (/^x:(?:tweet|thread):\d+$/i.test(shorthand))
+  if (/^x:(?:tweet|thread|media):\d+$/i.test(shorthand))
     return { kind: "url", locator: shorthand };
   const url = new URL(clicked || page);
   if (

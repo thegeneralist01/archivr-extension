@@ -1,7 +1,7 @@
 import { showDialog, showToast } from "./dialog";
 import {
   type ContextSnapshot,
-  nativeContextTarget,
+  contextTargetFromElement,
 } from "./site-targets";
 
 // A classic bundled script can be reinjected by activeTab; keep exactly one listener set.
@@ -42,7 +42,7 @@ if (!(globalThis as any).__archivrInstalled) {
       (event) => {
         const element = event.target instanceof Element ? event.target : null;
         contextSnapshot = {
-          url: nativeContextTarget(
+          ...contextTargetFromElement(
             isYoutube ? "youtube" : "x",
             location.href,
             element,
