@@ -17,7 +17,7 @@ async function withXPage(run: (page: any) => Promise<void>) {
     );
     await page.addInitScript(() => {
       (window as any).__archivrMessages = [];
-      (window as any).chrome = { runtime: { onMessage: { addListener: () => {} }, sendMessage: async (message: unknown) => { (window as any).__archivrMessages.push(message); return { ok: true, data: null }; } } };
+      (window as any).chrome = { runtime: { onMessage: { addListener: () => {} }, getURL: (path: string) => `chrome-extension://fixture/${path}`, sendMessage: async (message: unknown) => { (window as any).__archivrMessages.push(message); return { ok: true, data: null }; } } };
     });
     await page.goto(pageUrl);
     await page.addScriptTag({ path: "dist/content.js" });
@@ -55,6 +55,8 @@ test("trusted right-click sees a bubble-cancelled X Dropdown, preserves its thre
   await withXPage(async (page) => {
     await installVideoMenu(page);
     expect(await menuItems(page)).toEqual(["Copy video address", "Archive video", "Copy link at current time", "Post Video"]);
+    expect(await page.locator('[data-archivr-video-menu] img').getAttribute("src")).toBe("chrome-extension://fixture/logo-mark.svg");
+    expect(await page.locator('[data-archivr-video-menu] img').getAttribute("aria-hidden")).toBe("true");
     await page.getByRole("menuitem", { name: "Archive video" }).click();
     await page.waitForFunction(() => (window as any).__archivrMessages.length === 1);
     expect(await page.evaluate(() => (window as any).__archivrMessages)).toEqual([{ type: "OPEN_TARGET", url: "x:media:999999999999999999" }]);

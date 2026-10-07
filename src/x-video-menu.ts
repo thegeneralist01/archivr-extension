@@ -104,7 +104,20 @@ export function installXVideoMenu() {
     action.setAttribute("role", "menuitem");
     action.setAttribute("aria-label", "Archive video");
     action.tabIndex = 0;
-    action.textContent = "Archive video";
+    action.textContent = "";
+    const logo = document.createElement("img");
+    logo.src = chrome.runtime.getURL("logo-mark.svg");
+    logo.alt = "";
+    logo.setAttribute("aria-hidden", "true");
+    logo.width = 16;
+    logo.height = 16;
+    logo.style.width = "16px";
+    logo.style.height = "16px";
+    logo.style.borderRadius = "4px";
+    logo.style.marginRight = "8px";
+    logo.style.verticalAlign = "middle";
+    logo.style.objectFit = "cover";
+    action.append(logo, document.createTextNode("Archive video"));
     const activate = () => {
       if (session.activating || session.disposed || active !== session ||
           action.parentElement !== menu || !visible(menu) || !visible(action) || !menuCandidate(menu)) return;
