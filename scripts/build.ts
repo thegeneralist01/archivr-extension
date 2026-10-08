@@ -3,6 +3,11 @@ import react from "@vitejs/plugin-react";
 import path from "node:path";
 import { mkdir, copyFile, readFile, writeFile } from "node:fs/promises";
 import { hasRemoteCssImport, stripCssImports } from "../src/css";
+// Fail before producing an unpacked extension with a malformed manifest.
+JSON.parse(await readFile("manifest.json", "utf8"));
+// Bun's test runner exports NODE_ENV=test to child processes. Both Vite's
+// JSX transform and React must agree that this packaged build is production.
+process.env.NODE_ENV = "production";
 const source = path.resolve(
   process.env.ARCHIVR_SOURCE_DIR || "../archivr/frontend/src",
 );

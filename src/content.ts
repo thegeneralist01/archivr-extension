@@ -26,6 +26,7 @@ if (!(globalThis as any).__archivrInstalled) {
           ? "Archived in Archivr."
           : message.job.error || "Capture failed. Open Archivr for details.",
         message.job.job_uid,
+        message.job.status === "completed" ? "success" : "error",
       );
     return false;
   });

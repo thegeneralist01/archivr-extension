@@ -1,4 +1,35 @@
-# Verification — 2026-10-07 — extension 0.1.2
+# Verification — 2026-10-08 — extension 0.1.4
+
+## UI consistency and YouTube follow-up
+
+- `bun run test`: 37 tests, 341 assertions passed. Includes serialized menu
+  visibility updates and a production-bundle regression against test-runner
+  `NODE_ENV=test` causing incompatible React JSX calls.
+- `bun run test:browser`: 10 tests, 32 assertions passed, including trusted X
+  video-menu discovery, keyboard activation, rerender restoration and cleanup.
+- `bun run typecheck` and both production Vite builds passed.
+- Production-bundle UI smoke: fourteen fixture surfaces with no page errors or
+  horizontal overflow; capture-submit computed styles match between fallback and
+  in-page dialogs. Successful batches report their counts without stranded
+  progress; repeated locators settle; background success preserves useful
+  warning feedback. Previews and report are under `artifacts/ui`.
+- Fresh-profile packaged Chromium smoke: real tab activation/navigation switches
+  generic page-menu visibility correctly on YouTube, youtu.be and ordinary pages.
+  The real content listener renders isolated notifications. All four bundled
+  FontFaces load under `font-src 'none'`; canvas glyph metrics confirm the actual
+  families render, rather than system fallback. The real welcome page renders.
+- Version 0.1.4 ZIP: nineteen files, bytes exactly match final `dist`, manifest
+  JSON matches source, and all four fonts plus both OFL licenses are included.
+- GPT-6.1 Sol High read-only review reported no remaining must-fix issues after
+  notification lifecycle, authorization feedback and deterministic-build fixes.
+- Main Archivr repository is unchanged. No live user captures or account data
+  were used. Native OS menu painting is not visually tested; controlled Chromium
+  fixtures do not establish compatibility with future live-site DOM changes.
+
+See [UI audit](ui-consistency.md) for the surface-by-surface design treatment.
+Reload the extension from `dist` and refresh open X/YouTube tabs after updating.
+
+# Earlier verification — 2026-10-07 — extension 0.1.2
 
 ## Automated checks
 

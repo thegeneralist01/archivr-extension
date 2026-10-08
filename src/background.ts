@@ -17,6 +17,7 @@ import {
   xMediaMenuLocator,
   xMenuLocator,
 } from "./site-targets";
+import { installPageMenuVisibility } from "./menu-visibility";
 type Config = {
   origin: string;
   token: string;
@@ -333,18 +334,22 @@ async function pollJobs() {
           .catch(() => {});
     } catch (error: any) {
       if (error.status === 401 || error.status === 403) {
+        const message = "Sign in again: the extension token is no longer authorized.";
         await editJobs((all) =>
           all.map((item) =>
             item.job_uid === job.job_uid
               ? {
                   ...item,
                   status: "failed",
-                  error:
-                    "Sign in again: the extension token is no longer authorized.",
+                  error: message,
                 }
               : item,
           ),
         );
+        if (job.tabId != null) chrome.tabs.sendMessage(job.tabId, {
+          type: "JOB_STATUS",
+          job: { job_uid: job.job_uid, status: "failed", error: message },
+        }).catch(() => {});
       }
     }
   }
@@ -646,7 +651,11 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === "capture-jobs") pollJobs().catch(() => {});
 });
-chrome.runtime.onStartup.addListener(() => pollJobs().catch(() => {}));
+const pageMenuVisibility = installPageMenuVisibility();
+chrome.runtime.onStartup.addListener(() => {
+  pollJobs().catch(() => {});
+  pageMenuVisibility.refresh().catch(() => {});
+});
 async function setupMenus() {
   await chrome.contextMenus.removeAll();
   chrome.contextMenus.create({
@@ -690,6 +699,7 @@ async function setupMenus() {
     contexts: ["page", "link", "image", "video"],
     documentUrlPatterns: ["*://youtube.com/*", "*://*.youtube.com/*", "*://youtu.be/*"],
   });
+  await pageMenuVisibility.refresh();
 }
 chrome.runtime.onInstalled.addListener((details) => {
   setupMenus().catch(() => {});
@@ -764,6 +774,7 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
   handleMenuClick(info, tab).catch(() => {});
 });
 ready.then(async () => {
+  await pageMenuVisibility.refresh().catch(() => {});
   await badge();
   const { jobs = [] } = await state();
   if (jobs.some(isPending))

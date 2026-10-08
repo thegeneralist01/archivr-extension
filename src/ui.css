@@ -1,0 +1,38 @@
+/* Supplement the main application's shared controls, without repainting them. */
+.extension-notifications {
+  z-index: 2147483647;
+  font: 14px var(--sans);
+}
+.extension-notifications .toast-headline {
+  overflow-wrap: anywhere;
+}
+.extension-notification-actions {
+  padding: 0 14px 12px;
+}
+.extension-notifications .toast--info {
+  border-left: 3px solid var(--link);
+}
+.extension-notifications .toast--info .toast-icon {
+  color: var(--link);
+}
+.extension-notifications button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.extension-page :focus-visible,
+.capture-dialog :focus-visible,
+.extension-notifications :focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+@media (max-width: 400px) {
+  .extension-notifications {
+    right: 16px;
+    bottom: 16px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .extension-notifications .toast {
+    animation: none;
+  }
+}

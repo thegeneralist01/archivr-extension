@@ -3,7 +3,14 @@ import { createRoot } from "react-dom/client";
 import CaptureDialog from "@archivr/components/CaptureDialog.jsx";
 import { captureApi, send } from "./bridge";
 import { normalizeOrigin } from "./core";
+import {
+  Notifications,
+  useCaptureNotifications,
+  useNotifications,
+} from "./notifications";
 import "@archivr/styles.css";
+import "./fonts.css";
+import "./ui.css";
 import "./pages.css";
 const popup = location.pathname.endsWith("/popup.html");
 function App() {
@@ -12,8 +19,9 @@ function App() {
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
     [draft, setDraft] = useState<any>(null),
-    [open, setOpen] = useState(false),
-    [toast, setToast] = useState("");
+    [open, setOpen] = useState(false);
+  const { notices, notify, dismiss } = useNotifications();
+  const feedback = useCaptureNotifications(notify, dismiss);
   const [containerOpened, setContainerOpened] = useState(false);
   const key = new URLSearchParams(location.search).get("capture");
   const refresh = async () => {
@@ -21,6 +29,9 @@ function App() {
     setStatus(data);
     return data;
   };
+  useEffect(() => {
+    document.body.classList.toggle("extension-popup", popup);
+  }, []);
   useEffect(() => {
     refresh().catch((e) => setError(e.message));
     if (key)
@@ -90,234 +101,264 @@ function App() {
     }
   }, [draft?.container, config?.archiveId]);
   return (
-    <main className={popup ? "extension-page popup" : "extension-page"}>
-      <header>
-        <img src="/logo-mark.svg" alt="Archivr" />
-        <div className="wordmark">
-          Archivr
-          <span>
-            {popup ? "Capture & preserve" : "Your archive, one click away."}
-          </span>
-        </div>
-      </header>
-      {popup ? (
-        <>
-          {config ? (
-            <>
-              <p className="muted">
-                {config.archives.find((a: any) => a.id === config.archiveId)
-                  ?.label || "Choose an archive"}{" "}
-                · {config.origin}
-              </p>
-              <button
-                className="primary wide"
-                disabled={!config.archiveId || busy}
-                onClick={() =>
-                  act(async () => {
-                    await send("CAPTURE_PAGE");
-                    window.close();
-                  })
-                }
-              >
-                Archive this page
-              </button>
-              <button
-                className="wide"
-                onClick={() => act(() => send("OPEN_ARCHIVR"))}
-              >
-                Open in Archivr
-              </button>
-            </>
-          ) : (
-            <p>Connect your Archivr server to start capturing.</p>
-          )}
-          <button
-            className="text-button"
-            onClick={() => act(() => send("OPEN_SETTINGS"))}
-          >
-            {config ? "Settings" : "Connect Archivr"}
-          </button>
-        </>
-      ) : (
-        <>
-          {!config && !status?.pairing && (
-            <>
-              <h1>Connect your Archivr.</h1>
-              <p>
-                Save pages, posts, videos, and selected text to your own
-                archive.
-              </p>
-              <form
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  connect();
-                }}
-              >
-                <label htmlFor="origin">Server address</label>
-                <div className="connect-row">
-                  <input
-                    id="origin"
-                    value={origin}
-                    onChange={(e) => setOrigin(e.target.value)}
-                    placeholder="http://localhost:8080"
-                    autoComplete="url"
-                    required
-                  />
-                  <button className="primary" disabled={busy}>
-                    Connect
-                  </button>
-                </div>
-                <p className="hint">
-                  Enter a hostname or an HTTP / HTTPS address. Use port 443 for
-                  HTTPS.
+    <>
+      <main
+        className={popup ? "extension-page popup" : "extension-page"}
+        aria-busy={busy || (!status && !error)}
+      >
+        <header>
+          <img src="/logo-mark.svg" alt="" aria-hidden="true" />
+          <div className="wordmark">
+            Archivr
+            <span>{popup ? "Capture & preserve" : "Browser extension"}</span>
+          </div>
+        </header>
+        {!status ? (
+          <p className="muted" role="status">
+            {error
+              ? "Unable to load your connection."
+              : "Loading your connection…"}
+          </p>
+        ) : popup ? (
+          <>
+            {config ? (
+              <>
+                <p className="muted">
+                  {config.archives.find((a: any) => a.id === config.archiveId)
+                    ?.label || "Choose an archive"}{" "}
+                  · {config.origin}
                 </p>
-              </form>
-            </>
-          )}
-          {status?.pairing && (
-            <section>
-              <h1>
-                {status.pairing.state === "waiting"
-                  ? "Log in to Archivr."
-                  : "Review your connection."}
-              </h1>
-              <p>
-                Server: <strong>{status.pairing.origin}</strong>
-              </p>
-              <p>
-                {status.pairing.state === "waiting"
-                  ? "Finish logging in in the server tab. This page will connect when your account is ready."
-                  : "Token creation could not be confirmed. Open API tokens in Archivr and revoke any extra “Archivr Chrome extension” token before resetting."}
-              </p>
-              {status.pairing.error && (
-                <p className="notice">{status.pairing.error}</p>
-              )}
-              <button
-                disabled={busy || status.pairing.state === "minting"}
-                onClick={() => act(() => send("DISCONNECT"))}
-              >
-                {status.pairing.state === "waiting"
-                  ? "Cancel connection"
-                  : "Reset pairing"}
-              </button>
-            </section>
-          )}
-          {config && (
-            <section>
-              <h1>Connected to Archivr.</h1>
-              <p>
-                <strong>{config.username}</strong> · {config.origin}
-              </p>
-              <label htmlFor="archive">Save captures to</label>
-              <select
-                id="archive"
-                value={config.archiveId || ""}
-                onChange={(event) =>
-                  act(() =>
-                    send("SELECT_ARCHIVE", { archiveId: event.target.value }),
-                  )
-                }
-              >
-                <option value="" disabled>
-                  Choose an archive
-                </option>
-                {config.archives.map((archive: any) => (
-                  <option key={archive.id} value={archive.id}>
-                    {archive.label}
-                  </option>
-                ))}
-              </select>
-              <p className="hint">
-                Use the toolbar, a page’s context menu, or the Archive buttons
-                on X and YouTube.
-              </p>
-              <div className="button-row">
                 <button
-                  className="primary"
-                  disabled={!config.archiveId}
+                  className="primary wide"
+                  disabled={!config.archiveId || busy}
+                  onClick={() =>
+                    act(async () => {
+                      await send("CAPTURE_PAGE");
+                      window.close();
+                    })
+                  }
+                >
+                  Archive this page
+                </button>
+                <button
+                  className="wide"
+                  disabled={busy}
                   onClick={() => act(() => send("OPEN_ARCHIVR"))}
                 >
                   Open in Archivr
                 </button>
+              </>
+            ) : status.pairing ? (
+              <p role="status">
+                {status.pairing.state === "waiting"
+                  ? "Finish logging in to connect Archivr."
+                  : "Review your connection in settings."}
+              </p>
+            ) : (
+              <p>Connect your Archivr server to start capturing.</p>
+            )}
+            <button
+              className="text-button"
+              disabled={busy}
+              onClick={() => act(() => send("OPEN_SETTINGS"))}
+            >
+              {config || status.pairing ? "Settings" : "Connect Archivr"}
+            </button>
+          </>
+        ) : (
+          <>
+            {!config && !status?.pairing && (
+              <>
+                <h1>Connect your Archivr.</h1>
+                <p>
+                  Save pages, posts, videos, and selected text to your own
+                  archive.
+                </p>
+                <form
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    connect();
+                  }}
+                >
+                  <label htmlFor="origin">Server address</label>
+                  <div className="connect-row">
+                    <input
+                      id="origin"
+                      value={origin}
+                      onChange={(e) => setOrigin(e.target.value)}
+                      placeholder="http://localhost:8080"
+                      autoComplete="url"
+                      required
+                      disabled={busy}
+                      aria-describedby="origin-hint"
+                    />
+                    <button className="primary" disabled={busy}>
+                      Connect
+                    </button>
+                  </div>
+                  <p className="hint" id="origin-hint">
+                    Enter a hostname or an HTTP / HTTPS address. Use port 443
+                    for HTTPS.
+                  </p>
+                </form>
+              </>
+            )}
+            {status?.pairing && (
+              <section>
+                <h1>
+                  {status.pairing.state === "waiting"
+                    ? "Log in to Archivr."
+                    : "Review your connection."}
+                </h1>
+                <p>
+                  Server: <strong>{status.pairing.origin}</strong>
+                </p>
+                <p>
+                  {status.pairing.state === "waiting"
+                    ? "Finish logging in in the server tab. This page will connect when your account is ready."
+                    : "Token creation could not be confirmed. Open API tokens in Archivr and revoke any extra “Archivr Chrome extension” token before resetting."}
+                </p>
+                {status.pairing.error && (
+                  <p className="notice" role="status">
+                    {status.pairing.error}
+                  </p>
+                )}
                 <button
-                  disabled={busy}
+                  disabled={busy || status.pairing.state === "minting"}
                   onClick={() => act(() => send("DISCONNECT"))}
                 >
-                  Disconnect / change server
+                  {status.pairing.state === "waiting"
+                    ? "Cancel connection"
+                    : "Reset pairing"}
                 </button>
-              </div>
-              {error.includes("could not revoke") && (
-                <button onClick={() => act(() => send("FORGET_CONNECTION"))}>
-                  Forget connection locally
+              </section>
+            )}
+            {config && (
+              <section>
+                <h1>Connected to Archivr.</h1>
+                <p>
+                  <strong>{config.username}</strong> · {config.origin}
+                </p>
+                <label htmlFor="archive">Save captures to</label>
+                <select
+                  id="archive"
+                  value={config.archiveId || ""}
+                  disabled={busy}
+                  onChange={(event) =>
+                    act(() =>
+                      send("SELECT_ARCHIVE", { archiveId: event.target.value }),
+                    )
+                  }
+                >
+                  <option value="" disabled>
+                    Choose an archive
+                  </option>
+                  {config.archives.map((archive: any) => (
+                    <option key={archive.id} value={archive.id}>
+                      {archive.label}
+                    </option>
+                  ))}
+                </select>
+                <p className="hint">
+                  Use the toolbar or right-click a page, post, video, or
+                  selected text to capture it.
+                </p>
+                <div className="button-row">
+                  <button
+                    className="primary"
+                    disabled={!config.archiveId || busy}
+                    onClick={() => act(() => send("OPEN_ARCHIVR"))}
+                  >
+                    Open in Archivr
+                  </button>
+                  <button
+                    disabled={busy}
+                    onClick={() => act(() => send("DISCONNECT"))}
+                  >
+                    Disconnect / change server
+                  </button>
+                </div>
+                {error.includes("could not revoke") && (
+                  <button
+                    disabled={busy}
+                    onClick={() => act(() => send("FORGET_CONNECTION"))}
+                  >
+                    Forget connection locally
+                  </button>
+                )}
+                <p className="hint">
+                  Disconnect revokes this extension’s API token on the server.
+                </p>
+              </section>
+            )}
+            {draft && (
+              <section>
+                {draft.notice && (
+                  <p className="notice" role="status">
+                    {draft.notice}
+                  </p>
+                )}
+                <button
+                  className="primary"
+                  disabled={!config?.archiveId || busy}
+                  onClick={() =>
+                    draft.container
+                      ? act(() =>
+                          send("OPEN_ARCHIVR", { locator: draft.container }),
+                        )
+                      : setOpen(true)
+                  }
+                >
+                  Review capture
                 </button>
-              )}
-              <p className="hint">
-                Disconnect revokes this extension’s API token on the server.
-              </p>
-            </section>
-          )}
-          {draft && (
-            <section>
-              <p className="notice">{draft.notice}</p>
-              <button
-                className="primary"
-                disabled={!config?.archiveId}
-                onClick={() =>
-                  draft.container
-                    ? act(() =>
-                        send("OPEN_ARCHIVR", { locator: draft.container }),
-                      )
-                    : setOpen(true)
-                }
-              >
-                Review capture
-              </button>
-            </section>
-          )}
-        </>
-      )}
-      {error && (
-        <p className="error" role="alert">
-          {error}
-        </p>
-      )}
-      {status?.jobs?.length > 0 && (
-        <section className="recent">
-          <h2>Recent captures</h2>
-          {status.jobs
-            .slice(-5)
-            .reverse()
-            .map((job: any) => (
-              <div className="job" key={job.job_uid}>
-                <span>
-                  {job.status === "pending" || job.status === "running"
-                    ? "Capturing…"
-                    : job.status === "completed"
-                      ? "Archived"
-                      : job.status === "failed"
-                        ? "Failed"
-                        : job.status}
-                </span>
-                <small>
-                  {job.error || new Date(job.createdAt).toLocaleTimeString()}
-                  {job.status === "completed" &&
-                    config?.origin === job.origin && (
-                      <button
-                        className="text-button"
-                        onClick={() =>
-                          act(() =>
-                            send("OPEN_ARCHIVR", { jobUid: job.job_uid }),
-                          )
-                        }
-                      >
-                        Open in Archivr
-                      </button>
-                    )}
-                </small>
-              </div>
-            ))}
-        </section>
-      )}
+              </section>
+            )}
+          </>
+        )}
+        {error && (
+          <p className="error" role="alert">
+            {error}
+          </p>
+        )}
+        {status?.jobs?.length > 0 && (
+          <section className="recent">
+            <h2>Recent captures</h2>
+            {status.jobs
+              .slice(-5)
+              .reverse()
+              .map((job: any) => (
+                <div className="job" key={job.job_uid}>
+                  <span>
+                    {job.status === "pending" || job.status === "running"
+                      ? "Capturing…"
+                      : job.status === "completed"
+                        ? "Archived"
+                        : job.status === "failed"
+                          ? "Failed"
+                          : job.status}
+                  </span>
+                  <small>
+                    {job.error || new Date(job.createdAt).toLocaleTimeString()}
+                    {job.status === "completed" &&
+                      config?.origin === job.origin && (
+                        <button
+                          className="text-button"
+                          onClick={() =>
+                            act(() =>
+                              send("OPEN_ARCHIVR", { jobUid: job.job_uid }),
+                            )
+                          }
+                        >
+                          Open in Archivr
+                        </button>
+                      )}
+                  </small>
+                </div>
+              ))}
+          </section>
+        )}
+        <footer>Captured content stays on your Archivr server.</footer>
+      </main>
       {!draft?.container && draft && config?.archiveId && (
         <CaptureDialog
           open={open}
@@ -329,14 +370,19 @@ function App() {
           allowFileUpload={false}
           onClose={() => setOpen(false)}
           onCaptured={() => refresh()}
-          onToast={(message: string) => setToast(message)}
-          onJobStarted={() => refresh()}
-          onJobSettled={() => refresh()}
+          onToast={feedback.onToast}
+          onJobStarted={(job: any) => {
+            feedback.onJobStarted(job);
+            refresh().catch(() => {});
+          }}
+          onJobSettled={(id: string) => {
+            feedback.onJobSettled(id);
+            refresh().catch(() => {});
+          }}
         />
       )}
-      {toast && <p className="notice">{toast}</p>}
-      <footer>Captured content stays on your Archivr server.</footer>
-    </main>
+      <Notifications notices={notices} onDismiss={dismiss} />
+    </>
   );
 }
 createRoot(document.getElementById("root")!).render(<App />);

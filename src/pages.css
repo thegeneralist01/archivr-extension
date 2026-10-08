@@ -1,52 +1,59 @@
-/* System serif fallbacks keep all extension assets local. */
+/* Match Archivr's shared typography and form language. CaptureDialog lives
+   outside this page shell so these layout rules cannot override its controls. */
 .extension-page {
-  max-width: 760px;
+  max-width: 720px;
   margin: 0 auto;
-  padding: 64px 52px;
+  padding: 56px 40px;
   color: var(--ink);
+  overflow-wrap: anywhere;
 }
 .extension-page header {
   display: flex;
   align-items: center;
-  gap: 18px;
-  margin-bottom: 60px;
+  gap: 14px;
+  margin-bottom: 40px;
 }
 .extension-page header img {
-  width: 52px;
-  height: 52px;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--r3);
 }
 .wordmark {
-  font:
-    40px Georgia,
-    serif;
-  letter-spacing: -1px;
+  font-family: var(--display);
+  font-size: 40px;
+  font-weight: 600;
+  line-height: 1;
 }
 .wordmark span {
   display: block;
-  font:
-    12px Arial,
-    sans-serif;
-  letter-spacing: 0.04em;
+  font: 12px var(--sans);
   margin-top: 8px;
   color: var(--muted);
 }
 .extension-page h1 {
-  font:
-    36px Georgia,
-    serif;
-  margin: 0 0 18px;
+  font: 600 30px/1.15 var(--display);
+  margin: 0 0 16px;
+}
+.extension-page h2 {
+  font: 600 22px/1.2 var(--display);
+  margin: 0 0 12px;
 }
 .extension-page p {
-  line-height: 1.7;
+  line-height: 1.6;
 }
 .extension-page label {
   display: block;
-  margin: 28px 0 10px;
+  margin: 24px 0 6px;
+  font-size: 11.5px;
   font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
 }
 .connect-row {
   display: flex;
-  gap: 10px;
+  gap: 8px;
+  align-items: stretch;
 }
 .extension-page input {
   min-width: 0;
@@ -54,32 +61,52 @@
 }
 .extension-page input,
 .extension-page select {
-  padding: 13px;
+  padding: 10px 12px;
+  min-height: 42px;
   border: 1px solid var(--line);
-  border-radius: 3px;
+  border-radius: var(--r2);
   background: var(--field);
   color: var(--ink);
-  font-size: 15px;
+  font: 14px var(--sans);
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+.extension-page input:focus,
+.extension-page select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent);
 }
 .extension-page select {
   width: 100%;
 }
 .extension-page button {
-  padding: 12px 20px;
-  cursor: pointer;
+  padding: 10px 16px;
+  min-height: 40px;
   border: 1px solid var(--line);
-  border-radius: 3px;
-  background: var(--paper-3);
+  border-radius: var(--r);
+  background: transparent;
   color: var(--ink);
-  font-weight: 600;
+  font: 13px var(--sans);
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    opacity 0.15s ease;
+}
+.extension-page button:hover {
+  background: var(--paper-2);
 }
 .extension-page button.primary {
-  background: var(--accent);
-  color: var(--paper-3);
-  border-color: var(--accent);
+  background: var(--top);
+  color: var(--paper);
+  border-color: var(--top);
+  font-weight: 600;
+}
+.extension-page button.primary:hover {
+  opacity: 0.85;
 }
 .extension-page button:disabled {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: default;
 }
 .extension-page .hint,
@@ -88,46 +115,79 @@
   color: var(--muted);
 }
 .extension-page footer {
-  margin-top: 54px;
-  border-top: 1px solid var(--line);
-  padding-top: 20px;
+  margin-top: 40px;
+  border-top: 1px solid var(--line-soft);
+  padding-top: 16px;
+  line-height: 1.5;
 }
 .extension-page .button-row {
   display: flex;
-  gap: 12px;
-  margin-top: 24px;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 20px;
 }
 .extension-page .error {
+  font-size: 13px;
   color: var(--accent);
-  padding: 12px;
+  padding: 12px 14px;
   border-left: 3px solid var(--accent);
+  background: var(--paper-2);
+  border-radius: var(--r);
 }
 .extension-page .notice {
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--r2);
   background: var(--paper-2);
-  padding: 14px;
+  font-size: 13px;
 }
 .extension-page .recent {
-  margin-top: 38px;
-}
-.extension-page h2 {
-  font:
-    22px Georgia,
-    serif;
+  margin-top: 30px;
 }
 .extension-page .job {
   display: flex;
   justify-content: space-between;
-  gap: 18px;
+  align-items: baseline;
+  gap: 12px;
   border-top: 1px solid var(--line-soft);
   padding: 12px 0;
+  font-size: 13px;
 }
-.job small {
+.extension-page .job > span {
+  flex-shrink: 0;
+  font-weight: 600;
+}
+.extension-page .job small {
+  min-width: 0;
   color: var(--muted);
-  max-width: 65%;
+  max-width: 68%;
   text-align: right;
+  line-height: 1.5;
+}
+.extension-page .job .text-button {
+  display: block;
+  margin-left: auto;
+  min-height: 32px;
+  font-size: 12px;
+}
+.extension-page .text-button {
+  border: 0;
+  background: none;
+  padding: 6px 0;
+  color: var(--link);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.extension-page .text-button:hover {
+  color: var(--ink);
+  background: none;
+}
+.extension-popup {
+  width: 360px;
+  min-height: 0;
 }
 .extension-page.popup {
-  width: 360px;
+  width: 100%;
   padding: 24px;
   margin: 0;
 }
@@ -137,22 +197,17 @@
 .popup header img {
   width: 36px;
   height: 36px;
+  border-radius: var(--r2);
 }
 .popup .wordmark {
-  font-size: 30px;
+  font-size: 32px;
 }
 .popup .wide {
   width: 100%;
-  margin: 8px 0;
+  margin: 6px 0;
 }
 .popup footer {
   margin-top: 20px;
-}
-.extension-page .text-button {
-  border: 0;
-  background: none;
-  padding: 10px 0;
-  text-decoration: underline;
 }
 .muted {
   color: var(--muted);
@@ -161,8 +216,17 @@
   .extension-page {
     padding: 32px 24px;
   }
-  .connect-row,
-  .button-row {
+  .connect-row {
     flex-direction: column;
+  }
+  .popup .button-row {
+    flex-direction: column;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .extension-page input,
+  .extension-page select,
+  .extension-page button {
+    transition: none;
   }
 }

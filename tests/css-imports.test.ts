@@ -56,6 +56,10 @@ test("ships a self-contained logo mark without remote font imports", async () =>
   });
   expect(await build.exited).toBe(0);
 
+  for (const file of new Bun.Glob("dist/**/*.js").scanSync(".")) {
+    expect(await readFile(file, "utf8")).not.toMatch(/\.jsxDEV\(/);
+  }
+
   for (const file of ["public/logo-mark.svg", "dist/logo-mark.svg"]) {
     const svg = await readFile(file, "utf8");
 
