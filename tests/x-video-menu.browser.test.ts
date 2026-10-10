@@ -9,9 +9,11 @@ const dropdown = `<div data-testid="Dropdown">
 </div>`;
 
 async function withXPage(run: (page: any) => Promise<void>) {
-  const browser = await chromium.launch({ headless: true });
+  const browser = await chromium.launch({ headless: true, timeout: 10_000 });
   const page = await browser.newPage();
   try {
+    page.setDefaultTimeout(5_000);
+    page.setDefaultNavigationTimeout(10_000);
     await page.route("https://x.com/**", (route: any) =>
       route.fulfill({ contentType: "text/html", body: "<!doctype html><body></body>" }),
     );

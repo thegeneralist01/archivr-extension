@@ -17,7 +17,7 @@
     "dev": "bun scripts/dev.ts",
     "build": "bun scripts/build.ts",
     "test": "bun test --path-ignore-patterns='tests/x-video-menu.browser.test.ts'",
-    "test:browser": "bun run build && bun test tests/x-video-menu.browser.test.ts",
+    "test:browser": "bun run build && bun test --timeout 30000 tests/x-video-menu.browser.test.ts",
     "test:all": "bun run test && bun run test:browser",
     "test:ui": "bun run build && bun scripts/verify-ui.ts && bun scripts/verify-extension.ts",
     "typecheck": "tsc --noEmit",
