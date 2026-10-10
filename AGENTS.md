@@ -19,6 +19,8 @@ Use Bun, not npm/yarn. `bun run dev` watches this repository and the shared fron
 
 Read [architecture](docs/architecture.md) for trust boundaries and [testing](docs/testing.md) for fixture limits. The shared-source revision used by CI is pinned in `.github/workflows/ci.yml`; test against that revision when reproducing CI.
 
+For user-facing behavior, capture options, server API contracts, shared UI, permissions, docs, or branding, use Archivr's [ecosystem change checklist](https://github.com/thegeneralist01/archivr/blob/master/docs/ecosystem-change-checklist.md) before implementation and again before reporting completion. Record applicability, action or reason, verification, and links for all three projects, even when working directly without a PR. In particular, a new shared-dialog option must be reviewed against the worker's request allowlist.
+
 ## Source map
 
 | Area | Files |

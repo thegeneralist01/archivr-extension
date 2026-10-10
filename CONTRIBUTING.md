@@ -30,6 +30,8 @@ For another source location, set `ARCHIVR_SOURCE_DIR=/absolute/path/to/archivr/f
 
 Use TypeScript/React with plain CSS and the existing shared Archivr components. Preserve the UI’s paper palette, typefaces, controls and notification treatment. Avoid unrelated formatting changes. The [architecture guide](docs/architecture.md) identifies the credential and message boundaries; preserve them when adding features.
 
+Before starting and before finishing a user-facing or API change, use Archivr's [ecosystem change checklist](https://github.com/thegeneralist01/archivr/blob/master/docs/ecosystem-change-checklist.md). Record whether Archivr and the MCP server need companion changes, with a reason for any project that is not applicable. The extension imports Archivr's Capture dialog, but its worker separately allowlists capture fields; check both when options change. Use the same review for direct commits and agent tasks, not only PRs.
+
 Add meaningful regression coverage for changed routing, ownership, permissions, pairing, job lifecycle, or dialog state. For low-impact documentation edits, check links and commands rather than adding implementation-mirroring tests. Consult the [test guide](docs/testing.md) for the appropriate suites and their limits.
 
 PRs should describe the problem, resulting behavior, verification and known limitations. Document permission, storage, API and compatibility changes. Update the changelog for user-visible behavior; keep manifest/package versions aligned when preparing a release.
