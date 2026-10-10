@@ -1,5 +1,5 @@
-import { expect, test } from "bun:test";
-import { chromium } from "playwright";
+import { afterAll, beforeAll, expect, test } from "bun:test";
+import { chromium, type Browser, type BrowserContext } from "playwright";
 
 const pageUrl = "https://x.com/home";
 const dropdown = `<div data-testid="Dropdown">
@@ -8,23 +8,56 @@ const dropdown = `<div data-testid="Dropdown">
   <div role="menuitem" tabindex="0">Post Video</div>
 </div>`;
 
+let browser: Browser;
+
+beforeAll(async () => {
+  browser = await chromium.launch({ headless: true, timeout: 10_000 });
+}, 15_000);
+
+afterAll(async () => {
+  if (browser) await browserOperation(browser.close(), "close the suite browser");
+}, 15_000);
+
 async function withXPage(run: (page: any) => Promise<void>) {
-  const browser = await chromium.launch({ headless: true, timeout: 10_000 });
+  let context: BrowserContext | undefined;
+  let operationFailed = false;
+  let operationError: unknown;
+  let onDisconnected!: () => void;
+  const disconnected = new Promise<never>((_, reject) => {
+    onDisconnected = () => reject(new Error("Chromium disconnected during a fixture."));
+    browser.once("disconnected", onDisconnected);
+    if (!browser.isConnected()) onDisconnected();
+  });
   try {
-    const page = await browserOperation(browser.newPage(), "create a fixture page");
-    page.setDefaultTimeout(5_000);
-    page.setDefaultNavigationTimeout(10_000);
-    await page.route("https://x.com/**", (route: any) =>
-      route.fulfill({ contentType: "text/html", body: "<!doctype html><body></body>" }),
-    );
-    await page.addInitScript(() => {
-      (window as any).__archivrMessages = [];
-      (window as any).chrome = { runtime: { onMessage: { addListener: () => {} }, getURL: (path: string) => `chrome-extension://fixture/${path}`, sendMessage: async (message: unknown) => { (window as any).__archivrMessages.push(message); return { ok: true, data: null }; } } };
-    });
-    await page.goto(pageUrl);
-    await page.addScriptTag({ path: "dist/content.js" });
-    await run(page);
-  } finally { await browserOperation(browser.close(), "close the fixture browser"); }
+    await browserOperation(Promise.race([(async () => {
+      context = await browser.newContext();
+      const page = await context.newPage();
+      page.setDefaultTimeout(5_000);
+      page.setDefaultNavigationTimeout(10_000);
+      await page.route("https://x.com/**", (route: any) =>
+        route.fulfill({ contentType: "text/html", body: "<!doctype html><body></body>" }),
+      );
+      await page.addInitScript(() => {
+        (window as any).__archivrMessages = [];
+        (window as any).chrome = { runtime: { onMessage: { addListener: () => {} }, getURL: (path: string) => `chrome-extension://fixture/${path}`, sendMessage: async (message: unknown) => { (window as any).__archivrMessages.push(message); return { ok: true, data: null }; } } };
+      });
+      await page.goto(pageUrl);
+      await page.addScriptTag({ path: "dist/content.js" });
+      await run(page);
+    })(), disconnected]), "complete the fixture");
+  } catch (error) {
+    operationFailed = true;
+    operationError = error;
+    throw error;
+  } finally {
+    browser.off("disconnected", onDisconnected);
+    try {
+      if (context) await browserOperation(context.close(), "close the fixture context");
+    } catch (cleanupError) {
+      if (operationFailed) throw new AggregateError([operationError, cleanupError], "Fixture and cleanup both failed.");
+      throw cleanupError;
+    }
+  }
 }
 
 async function browserOperation<T>(operation: Promise<T>, description: string): Promise<T> {
