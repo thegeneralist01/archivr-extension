@@ -1,4 +1,13 @@
-# Verification — 2026-10-08 — extension 0.1.4
+# Repository preparation — 2026-10-10 — extension 0.1.4
+
+- Human README/usage, contributor guide, architecture, test/release guides, privacy/security policy, changelog and root AGENTS.md prepared. GitHub templates and a read-only CI workflow added; action revisions and the compatible shared frontend are pinned.
+- Local checks against the CI-compatible shared frontend passed: type checking, 37 unit tests/343 assertions, 10 X browser tests/32 assertions, fourteen UI fixtures and real packaged Chromium smoke. The companion pin is `3b748fb1d7f7c8daff0d3e8d934c972081381af9`; its frontend tree is identical to the extracted source used for the checks.
+- Final ZIP contains 21 files whose bytes exactly match `dist`. Versions/source/packaged manifest JSON agree; MIT/React notices, four font files and two OFL notices are included, and packaged notice links resolve.
+- Local documentation links and workflow YAML/triggers/read-only permissions/pinned action references validated. A high-confidence credential/private-key pattern scan of all 85 existing historical text blobs found no matches; this is a limited pattern scan, not a guarantee against every kind of sensitive data.
+- Independent GPT-6.1 Sol High review approved after clarifying host-page session storage and retention. No new paired-server/live-site check was performed for this documentation/packaging change.
+- GitHub repository created privately with metadata and `origin`; source push and hosted CI execution are pending. No release or browser-store publication was performed.
+
+# Earlier verification — 2026-10-08 — extension 0.1.4
 
 ## UI consistency and YouTube follow-up
 

@@ -3,4 +3,14 @@ dist/
 artifacts/
 *.zip
 .env.local
+.env
+.env.*
+!.env.example
+*.log
+*.crx
+coverage/
+playwright-report/
+test-results/
+creds.txt
+credentials.json
 .DS_Store

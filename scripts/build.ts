@@ -59,6 +59,15 @@ await build({
   },
 });
 await copyFile("manifest.json", "dist/manifest.json");
+// Keep runtime attribution with every unpacked/ZIP distribution.
+await copyFile("LICENSE", "dist/LICENSE");
+await writeFile(
+  "dist/THIRD_PARTY_NOTICES.md",
+  (await readFile("THIRD_PARTY_NOTICES.md", "utf8")).replaceAll(
+    "(public/fonts/",
+    "(fonts/",
+  ),
+);
 // The shared stylesheet includes a web-font import. The extension only ships local assets.
 for (const file of new Bun.Glob("dist/assets/*.css").scanSync(".")) {
   const css = await readFile(file, "utf8");

@@ -2,6 +2,8 @@
 
 Approved 2026-10-06. Chrome Manifest V3 first; Firefox later.
 
+This is a historical implementation record. Later changes replaced inline X Archive buttons with context-menu actions. The [usage guide](usage.md) and [architecture](architecture.md) describe the current extension.
+
 ## Contract
 - Server: GET /api/captures/options (ROLE_USER), flat capture defaults/availability plus title_providers [{kind,label}].
 - Server: POST /api/archives/:archive_id/captures/text/title, {body,provider} -> {title}; ROLE_USER, no capture or DB mutation.

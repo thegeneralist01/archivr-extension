@@ -2,6 +2,16 @@
   "name": "archivr-extension",
   "version": "0.1.4",
   "private": true,
+  "description": "Chrome extension for capturing pages, X posts and threads, YouTube videos, and selected text to a self-hosted Archivr archive.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/thegeneralist01/archivr-extension.git"
+  },
+  "bugs": {
+    "url": "https://github.com/thegeneralist01/archivr-extension/issues"
+  },
+  "homepage": "https://github.com/thegeneralist01/archivr-extension#readme",
   "type": "module",
   "scripts": {
     "dev": "bun scripts/dev.ts",
