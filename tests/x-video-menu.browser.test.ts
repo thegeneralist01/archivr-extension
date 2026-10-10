@@ -10,8 +10,8 @@ const dropdown = `<div data-testid="Dropdown">
 
 async function withXPage(run: (page: any) => Promise<void>) {
   const browser = await chromium.launch({ headless: true, timeout: 10_000 });
-  const page = await browser.newPage();
   try {
+    const page = await browserOperation(browser.newPage(), "create a fixture page");
     page.setDefaultTimeout(5_000);
     page.setDefaultNavigationTimeout(10_000);
     await page.route("https://x.com/**", (route: any) =>
@@ -24,7 +24,16 @@ async function withXPage(run: (page: any) => Promise<void>) {
     await page.goto(pageUrl);
     await page.addScriptTag({ path: "dist/content.js" });
     await run(page);
-  } finally { await browser.close(); }
+  } finally { await browserOperation(browser.close(), "close the fixture browser"); }
+}
+
+async function browserOperation<T>(operation: Promise<T>, description: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout>;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`Chromium did not ${description} within 10 seconds.`)), 10_000);
+  });
+  try { return await Promise.race([operation, timeout]); }
+  finally { clearTimeout(timer!); }
 }
 
 async function menuItems(page: any) {

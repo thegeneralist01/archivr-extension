@@ -17,7 +17,7 @@ Install the browser binary first with `bunx playwright install chromium`. On Lin
 
 `test:browser` exercises trusted right-clicks, delayed menus, quoted video ownership, keyboard activation, stale/detached players, SPA navigation, rerender restoration, and cleanup. It uses controlled X markup, not a live X account.
 
-Browser tests have a 30-second overall budget to accommodate Chromium startup and cleanup on hosted runners. Browser launch/navigation are bounded at 10 seconds and ordinary Playwright operations at 5 seconds; explicit short menu/navigation assertions keep their original deadlines. A stalled operation therefore reports its own failure instead of being cut off by Bun's default 5-second test budget.
+Browser tests have a 30-second overall budget to accommodate Chromium startup and cleanup on hosted runners. Browser launch, page creation, navigation and shutdown are bounded at 10 seconds and ordinary Playwright operations at 5 seconds; explicit short menu/navigation assertions keep their original deadlines. A stalled operation therefore reports its own failure instead of being cut off by Bun's default 5-second test budget.
 
 `test:ui` renders production bundles with a mocked extension bridge. It checks onboarding, pairing, settings, popup, narrow and long-content layouts, editable capture text, advanced options, notifications, and batch/repeated/warning capture feedback. It compares computed shared-dialog styles and checks page errors and horizontal overflow. The packaged-extension smoke separately uses the real worker/content APIs, tab navigation and activation, and local font rendering under `font-src 'none'`.
 
