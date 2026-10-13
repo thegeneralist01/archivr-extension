@@ -12,7 +12,7 @@ In-page right-click snapshots are short-lived document state used to resolve the
 
 ## Data sent
 
-Pairing uses your existing login in a same-origin server tab to create the named extension token. The extension does not copy cookies from X, YouTube or other sites. Subsequent worker requests use a bearer token with cookies omitted and redirects rejected.
+Pairing uses your existing login in a same-origin server tab to create the named extension token. Worker requests use a bearer token with cookies omitted and redirects rejected. If you grant cookie access from extension settings, the in-page Capture dialog reads the current page's cookies and localStorage and may include them in a capture POST to your configured Archivr server; they are never stored or logged by the extension.
 
 Captures send the reviewed URL/source locator, title/body for text, selected quality and options to your configured Archivr server. Job polling sends that capture’s job identity to the same server. Channels/playlists open its capture UI prefilled. Manual title generation sends the text to your server; its configured provider may process it under that provider’s policy.
 
@@ -29,6 +29,7 @@ Bundled JavaScript, styles, images and fonts load locally. Visiting a website an
 | `alarms` | Poll capture progress after the worker sleeps or dialog closes |
 | Persistent X/Twitter and YouTube host access | Resolve clicked posts/videos/links and integrate the supported X custom video menu |
 | Optional HTTP/HTTPS host access | Grant access to your chosen Archivr server when connecting |
+| `cookies` (optional) | Read the current page's cookies when you capture with "Use my cookies"; requested once from settings together with access to http/https sites |
 
 Chrome host grants are host/scheme based, while the worker additionally pins network requests to the exact configured origin, including its port. The manifest lists broad optional host patterns so different self-hosted servers can be selected; access is requested when you connect.
 

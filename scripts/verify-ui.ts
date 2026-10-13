@@ -101,7 +101,11 @@ async function fixture(
             return { ok: true, data: null };
           },
         },
-        permissions: { request: async () => true },
+        permissions: {
+          request: async () => true,
+          contains: async () => false,
+          remove: async () => true,
+        },
       };
     },
     { origin, status, items: draftItems },
@@ -378,10 +382,94 @@ try {
         failures.push("background completion replaced useful capture warning");
     },
   );
+  // ── in-page-browser-data fixture ────────────────────────────────────────────
+  await fixture(
+    "in-page-browser-data",
+    "/fixture",
+    { config },
+    900,
+    920,
+    async (page) => {
+      // Override sendMessage to answer BROWSER_SESSION with two cookies.
+      await page.addInitScript(() => {
+        const origSend = (window as any).chrome.runtime.sendMessage;
+        (window as any).chrome.runtime.sendMessage = async (msg: any) => {
+          if (msg.type === "BROWSER_SESSION") {
+            return {
+              ok: true,
+              data: {
+                cookieAccess: "granted",
+                cookies: [
+                  { name: "session", value: "abc", domain: "127.0.0.1", path: "/", httpOnly: true, secure: false },
+                  { name: "theme", value: "dark", domain: "127.0.0.1", path: "/", httpOnly: false, secure: false },
+                ],
+              },
+            };
+          }
+          if (msg.type === "API" && msg.method === "submitCapture") {
+            (window as any).__requests.push(msg);
+            return { ok: true, data: { job_uid: "j1", status: "pending" } };
+          }
+          return origSend(msg);
+        };
+        // Seed a localStorage item before the dialog opens.
+        try { localStorage.setItem("pref", "1"); } catch {}
+      });
+      await page.addScriptTag({ url: origin + "/content.js" });
+      // Send SHOW_CAPTURE with a locator that matches the page origin.
+      const fixtureLocator = origin + "/fixture";
+      await page.evaluate(
+        (locator) =>
+          (window as any).__listeners[0](
+            { type: "SHOW_CAPTURE", requestKey: "browser-data", items: [{ locator }] },
+            {},
+            () => {},
+          ),
+        fixtureLocator,
+      );
+      await page.waitForSelector("archivr-capture .capture-dialog[open]");
+      // "Use my cookies" toggle should appear and be checked (non-social host, defaults on).
+      const useMyCookies = page.locator("archivr-capture .capture-browser-session-row");
+      if (!(await useMyCookies.count()))
+        failures.push("in-page-browser-data: 'Use my cookies' toggle not found");
+      const checkbox = useMyCookies.locator('input[type="checkbox"]');
+      if (!(await checkbox.isChecked()))
+        failures.push("in-page-browser-data: 'Use my cookies' not checked by default on non-social host");
+      // Open Advanced options and verify tables appear.
+      await page.getByRole("button", { name: "Advanced options" }).click();
+      await page.waitForSelector("archivr-capture .capture-browser-data");
+      const cookieTable = page.locator("archivr-capture .capture-kv-table").first();
+      if (!(await cookieTable.count()))
+        failures.push("in-page-browser-data: cookie table not visible");
+      // Verify the fallback app.html dialog does NOT contain "Use my cookies".
+      await page.evaluate(async () => {
+        await document.fonts.ready;
+      });
+    },
+  );
+  // ── fallback dialog must not show browser data controls ──────────────────────
+  await fixture(
+    "fallback-no-browser-data",
+    "/app.html?capture=draft",
+    { config },
+    900,
+    700,
+    async (page) => {
+      await page.waitForSelector(".extension-page");
+      // The settings page legitimately has "Use my cookies" as a section heading.
+      // Verify only that the capture *dialog* itself has no browser-session controls.
+      const dialogCount = await page.locator(".capture-dialog").count();
+      if (dialogCount > 0) {
+        const dialogText = await page.locator(".capture-dialog").innerText();
+        if (dialogText.includes("Use my cookies"))
+          failures.push("fallback-no-browser-data: 'Use my cookies' rendered in app.html capture dialog");
+      }
+    },
+  );
   if (failures.length) throw new Error(failures.join("\n"));
   await Bun.write("artifacts/ui/report.json", JSON.stringify(report, null, 2));
   console.log(
-    "UI smoke passed: 14 surfaces, no page errors or horizontal overflow; shared capture styles match; batch, repeated and warning notifications settle correctly.",
+    "UI smoke passed: 16 surfaces, no page errors or horizontal overflow; shared capture styles match; batch, repeated and warning notifications settle correctly.",
   );
 } finally {
   await browser.close();

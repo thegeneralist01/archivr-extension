@@ -13,6 +13,63 @@ import "./fonts.css";
 import "./ui.css";
 import "./pages.css";
 const popup = location.pathname.endsWith("/popup.html");
+interface CookieAccessProps {
+  config: { origin: string };
+  busy: boolean;
+  act: (fn: () => Promise<unknown>) => Promise<void>;
+}
+
+function CookieAccessSection({ config, busy, act }: CookieAccessProps) {
+  const [cookieAccess, setCookieAccess] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    chrome.permissions
+      .contains({ permissions: ["cookies"], origins: ["http://*/*", "https://*/*"] })
+      .then(setCookieAccess)
+      .catch(() => setCookieAccess(false));
+  }, []);
+
+  const grant = () =>
+    act(async () => {
+      const granted = await chrome.permissions.request({
+        permissions: ["cookies"],
+        origins: ["http://*/*", "https://*/*"],
+      });
+      if (!granted) throw new Error("Cookie access was not allowed.");
+      setCookieAccess(true);
+    });
+
+  const revoke = () =>
+    act(async () => {
+      await chrome.permissions.remove({ permissions: ["cookies"] });
+      setCookieAccess(false);
+    });
+
+  return (
+    <section>
+      <h2>Use my cookies</h2>
+      <p className="hint">
+        The in-page Capture dialog can send this page&apos;s cookies and
+        localStorage with a capture so Archivr sees the page as you do. They
+        go only to {config.origin}, only for that capture, and are never
+        stored by the extension. Both are off by default on social sites.
+      </p>
+      {cookieAccess === null ? null : cookieAccess ? (
+        <>
+          <p role="status">Cookie access is allowed.</p>
+          <button disabled={busy} onClick={revoke}>
+            Remove cookie access
+          </button>
+        </>
+      ) : (
+        <button className="primary" disabled={busy} onClick={grant}>
+          Allow cookie access
+        </button>
+      )}
+    </section>
+  );
+}
+
 function App() {
   const [status, setStatus] = useState<any>(null),
     [origin, setOrigin] = useState(""),
@@ -290,6 +347,9 @@ function App() {
                   Disconnect revokes this extension’s API token on the server.
                 </p>
               </section>
+            )}
+            {config && !popup && (
+              <CookieAccessSection config={config} busy={busy} act={act} />
             )}
             {draft && (
               <section>

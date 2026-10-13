@@ -214,3 +214,106 @@ test("worker initialization recovers an interrupted mint before returning status
     recoverPairing({ state: "waiting", origin: "http://server" }).state,
   ).toBe("waiting");
 });
+import {
+  isSocialHost,
+  sessionAppliesTo,
+  validateBrowserSession,
+  cookieRows,
+} from "../src/core";
+
+test("isSocialHost matches exact entries and subdomains", () => {
+  expect(isSocialHost("www.reddit.com")).toBe(true);
+  expect(isSocialHost("reddit.com")).toBe(true);
+  expect(isSocialHost("x.com")).toBe(true);
+  expect(isSocialHost("old.reddit.com")).toBe(true);
+  expect(isSocialHost("example.com")).toBe(false);
+  expect(isSocialHost("notreddit.com")).toBe(false);
+});
+
+test("sessionAppliesTo mirrors server applicability rules", () => {
+  // Same hostname
+  expect(sessionAppliesTo("https://www.example.com/a", "https://www.example.com/b")).toBe(true);
+  // Different subdomain
+  expect(sessionAppliesTo("https://www.example.com/a", "https://example.com/b")).toBe(false);
+  // X family with tweet shorthand
+  expect(sessionAppliesTo("https://twitter.com/home", "tweet:tweet:123456789012345678")).toBe(true);
+  expect(sessionAppliesTo("https://x.com/home", "x:123456789012345678")).toBe(true);
+  // Non-X session with tweet shorthand
+  expect(sessionAppliesTo("https://example.com/", "tweet:123456789012345678")).toBe(false);
+  // x:media: requires exactly x.com
+  expect(sessionAppliesTo("https://twitter.com/home", "x:media:123456789012345678")).toBe(false);
+  expect(sessionAppliesTo("https://x.com/home", "x:media:123456789012345678")).toBe(true);
+  // Unknown shorthand
+  expect(sessionAppliesTo("https://example.com/", "yt:dQw4w9WgXcQ")).toBe(false);
+  // YouTube URL
+  expect(sessionAppliesTo("https://www.youtube.com/watch", "https://www.youtube.com/watch")).toBe(true);
+});
+
+test("validateBrowserSession rejects cross-origin url", () => {
+  expect(() =>
+    validateBrowserSession(
+      { url: "https://other.com/", cookies: {}, local_storage: {} },
+      "https://example.com/a",
+      "https://example.com/page",
+    )
+  ).toThrow("Browser data does not match this page.");
+});
+
+test("validateBrowserSession rejects non-object value", () => {
+  expect(() =>
+    validateBrowserSession("not-an-object", "https://example.com/a", "https://example.com/page")
+  ).toThrow("Invalid browser data.");
+});
+
+test("validateBrowserSession rejects 301 cookies", () => {
+  const cookies: Record<string, string> = {};
+  for (let i = 0; i < 301; i++) cookies[`k${i}`] = "v";
+  expect(() =>
+    validateBrowserSession(
+      { url: "https://example.com/", cookies, local_storage: {} },
+      "https://example.com/a",
+      "https://example.com/page",
+    )
+  ).toThrow("Browser data is too large.");
+});
+
+test("validateBrowserSession returns only copied string props", () => {
+  const result = validateBrowserSession(
+    {
+      url: "https://example.com/page",
+      cookies: { session: "abc" },
+      local_storage: { pref: "dark" },
+      extra_field: "ignored",
+    },
+    "https://example.com/a",
+    "https://example.com/page",
+  );
+  expect(result.url).toBe("https://example.com/page");
+  expect(result.cookies).toEqual({ session: "abc" });
+  expect(result.local_storage).toEqual({ pref: "dark" });
+  expect(Object.keys(result)).not.toContain("extra_field");
+});
+
+test("cookieRows deduplicates by name keeping first occurrence", () => {
+  const list = [
+    { name: "session", value: "abc", domain: "example.com", path: "/secure", httpOnly: true, secure: true },
+    { name: "session", value: "xyz", domain: "example.com", path: "/", httpOnly: false, secure: false },
+    { name: "theme", value: "dark", domain: "example.com", path: "/", httpOnly: false, secure: false },
+  ];
+  const rows = cookieRows(list);
+  expect(rows).toHaveLength(2);
+  expect(rows[0].name).toBe("session");
+  expect(rows[0].value).toBe("abc"); // first occurrence wins
+  expect(rows[1].name).toBe("theme");
+});
+
+test("authorizeMessage allows BROWSER_SESSION from content top-frame sender", () => {
+  const content = { id: "ext", tab: { id: 1 }, frameId: 0, url: "https://example.com/" };
+  expect(authorizeMessage({ type: "BROWSER_SESSION" }, content, "ext")).toBe(true);
+  // trusted sender (extension page) should NOT be allowed
+  const trusted = { id: "ext", url: "chrome-extension://ext/app.html", tab: { id: 1 }, frameId: 0 };
+  expect(authorizeMessage({ type: "BROWSER_SESSION" }, trusted, "ext")).toBe(false);
+  // sub-frame should NOT be allowed
+  const subframe = { id: "ext", tab: { id: 1 }, frameId: 1, url: "https://example.com/" };
+  expect(authorizeMessage({ type: "BROWSER_SESSION" }, subframe, "ext")).toBe(false);
+});

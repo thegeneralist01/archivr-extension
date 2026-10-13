@@ -13,6 +13,7 @@ export type MessageFields = {
   OPEN_SETTINGS: undefined;
   GET_DRAFT: { key: string };
   CAPTURE_CONTEXT: undefined;
+  BROWSER_SESSION: undefined;
   OPEN_TARGET: { url: string };
   CONTEXT_TARGET: { url?: string };
   GET_CONTEXT_TARGET: undefined;

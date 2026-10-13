@@ -139,7 +139,7 @@ export function authorizeMessage(
       (message.url === undefined ||
         (typeof message.url === "string" && message.url.length <= 10000))
     );
-  if (["CAPTURE_CONTEXT", "OPEN_ARCHIVR"].includes(message.type) && content)
+  if (["CAPTURE_CONTEXT", "OPEN_ARCHIVR", "BROWSER_SESSION", "OPEN_SETTINGS"].includes(message.type) && content)
     return true;
   return (
     trusted &&
@@ -244,4 +244,188 @@ export function recoverPairing<T extends { state: string; error?: string }>(
           "Token creation was interrupted. Check API tokens in Archivr before resetting pairing.",
       }
     : pairing;
+}
+// ── Browser session helpers ────────────────────────────────────────────────
+
+// Hosts where both "Use my cookies" and "Include localStorage" default to off.
+// Matched exactly or as a subdomain (e.g. "www.reddit.com" → matches "reddit.com").
+const SOCIAL_HOSTS = [
+  "x.com", "twitter.com", "instagram.com", "facebook.com", "fb.watch",
+  "threads.net", "threads.com", "tiktok.com", "reddit.com", "redd.it",
+  "snapchat.com", "youtube.com", "youtu.be", "linkedin.com", "bsky.app",
+  "pinterest.com", "tumblr.com", "discord.com", "vk.com", "weibo.com",
+] as const;
+
+/** True when `hostname` is in the social list or is a subdomain of one. */
+export function isSocialHost(hostname: string): boolean {
+  const h = hostname.toLowerCase();
+  for (const entry of SOCIAL_HOSTS) {
+    if (h === entry || h.endsWith("." + entry)) return true;
+  }
+  return false;
+}
+
+/**
+ * Client-side mirror of the server's `BrowserSession::applies_to`.
+ * Must never be more permissive than the server rule.
+ */
+export function sessionAppliesTo(pageUrl: string, locator: string): boolean {
+  try {
+    const pageHost = new URL(pageUrl).hostname.toLowerCase();
+    // x:media:ID — page must be exactly x.com
+    if (/^(?:x|twitter|tweet):media:/i.test(locator)) {
+      return pageHost === "x.com";
+    }
+    // Any other x/twitter/tweet shorthand — page must be X-family
+    if (/^(?:x|twitter|tweet):/i.test(locator)) {
+      return pageHost === "x.com" || pageHost === "twitter.com" ||
+        pageHost.endsWith(".x.com") || pageHost.endsWith(".twitter.com");
+    }
+    // http(s) URL — hostnames must be identical
+    const locatorHost = new URL(locator).hostname.toLowerCase();
+    return locatorHost.length > 0 && locatorHost === pageHost;
+  } catch {
+    return false;
+  }
+}
+
+// ── Wire limits (mirrored from browser_session.rs and frontend/src/browserData.js) ──
+const BS_MAX_COOKIES = 300;
+const BS_MAX_COOKIE_NAME_BYTES = 256;
+const BS_MAX_COOKIE_VALUE_BYTES = 8192;
+const BS_MAX_COOKIES_TOTAL_BYTES = 65536;
+const BS_MAX_STORAGE_ITEMS = 2000;
+const BS_MAX_STORAGE_KEY_BYTES = 1024;
+const BS_MAX_STORAGE_TOTAL_BYTES = 1_048_576;
+const BS_MAX_URL_BYTES = 10_000;
+
+function bsBytes(s: string): number {
+  return new TextEncoder().encode(s).length;
+}
+
+/**
+ * Validates and sanitizes a browser session value from a content-script extension message.
+ * Throws `Error` on any failure.
+ * Returns a clean `{ url, cookies, local_storage }` object.
+ */
+export function validateBrowserSession(
+  value: unknown,
+  locator: string,
+  senderUrl: string,
+): { url: string; cookies: Record<string, string>; local_storage: Record<string, string> } {
+  // Shape
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new Error("Invalid browser data.");
+  }
+  const v = value as Record<string, unknown>;
+
+  // url: must be string, http(s), same origin as senderUrl, and appliesTo locator
+  const url = v["url"];
+  if (typeof url !== "string" || bsBytes(url) > BS_MAX_URL_BYTES) {
+    throw new Error("Invalid browser data.");
+  }
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(url);
+    if (!["http:", "https:"].includes(parsedUrl.protocol)) throw new Error();
+  } catch {
+    throw new Error("Browser data does not match this page.");
+  }
+  // Origin must match senderUrl
+  try {
+    if (new URL(url).origin !== new URL(senderUrl).origin) {
+      throw new Error("Browser data does not match this page.");
+    }
+  } catch (e) {
+    if ((e as Error).message === "Browser data does not match this page.") throw e;
+    throw new Error("Browser data does not match this page.");
+  }
+  if (!sessionAppliesTo(url, locator)) {
+    throw new Error("Browser data does not match this page.");
+  }
+
+  // cookies
+  const rawCookies = v["cookies"];
+  const cookies: Record<string, string> = {};
+  if (rawCookies !== undefined && rawCookies !== null) {
+    if (typeof rawCookies !== "object" || Array.isArray(rawCookies)) {
+      throw new Error("Invalid browser data.");
+    }
+    const cookieMap = rawCookies as Record<string, unknown>;
+    const entries = Object.keys(cookieMap);
+    if (entries.length > BS_MAX_COOKIES) {
+      throw new Error("Browser data is too large.");
+    }
+    let totalBytes = 0;
+    for (const name of entries) {
+      const val = cookieMap[name];
+      if (typeof val !== "string") throw new Error("Invalid browser data.");
+      const nameBytes = bsBytes(name);
+      if (!name || nameBytes > BS_MAX_COOKIE_NAME_BYTES || /[\x00-\x1f\x7f ;=]/.test(name)) {
+        throw new Error("Invalid cookie name or value.");
+      }
+      const valBytes = bsBytes(val);
+      if (valBytes > BS_MAX_COOKIE_VALUE_BYTES || /[\x00-\x1f\x7f;]/.test(val)) {
+        throw new Error("Invalid cookie name or value.");
+      }
+      totalBytes += nameBytes + valBytes;
+      if (totalBytes > BS_MAX_COOKIES_TOTAL_BYTES) {
+        throw new Error("Browser data is too large.");
+      }
+      cookies[name] = val;
+    }
+  }
+
+  // local_storage
+  const rawStorage = v["local_storage"];
+  const local_storage: Record<string, string> = {};
+  if (rawStorage !== undefined && rawStorage !== null) {
+    if (typeof rawStorage !== "object" || Array.isArray(rawStorage)) {
+      throw new Error("Invalid browser data.");
+    }
+    const storageMap = rawStorage as Record<string, unknown>;
+    const keys = Object.keys(storageMap);
+    if (keys.length > BS_MAX_STORAGE_ITEMS) {
+      throw new Error("Browser data is too large.");
+    }
+    let totalBytes = 0;
+    for (const key of keys) {
+      const val = storageMap[key];
+      if (typeof val !== "string") throw new Error("Invalid browser data.");
+      const keyBytes = bsBytes(key);
+      if (!key || keyBytes > BS_MAX_STORAGE_KEY_BYTES) {
+        throw new Error("Browser data is too large.");
+      }
+      totalBytes += keyBytes + bsBytes(val);
+      if (totalBytes > BS_MAX_STORAGE_TOTAL_BYTES) {
+        throw new Error("Browser data is too large.");
+      }
+      local_storage[key] = val;
+    }
+  }
+
+  return { url, cookies, local_storage };
+}
+
+/**
+ * De-duplicates a raw cookie list (first occurrence per name wins, matching
+ * the order `chrome.cookies.getAll` returns — longest path first).
+ */
+export function cookieRows(
+  list: Array<{ name: string; value: string; domain: string; path: string; httpOnly: boolean; secure: boolean }>,
+): Array<{ name: string; value: string; domain: string; path: string; httpOnly: boolean; secure: boolean }> {
+  const seen = new Set<string>();
+  const result = [];
+  for (const c of list) {
+    if (!seen.has(c.name)) {
+      seen.add(c.name);
+      result.push({ name: c.name, value: c.value, domain: c.domain, path: c.path, httpOnly: c.httpOnly, secure: c.secure });
+    }
+  }
+  return result;
+}
+
+/** True when `s` contains a lone surrogate (unpaired high or low surrogate). */
+export function hasLoneSurrogate(s: string): boolean {
+  return /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/.test(s);
 }

@@ -10,6 +10,8 @@ import {
   authorizeMessage,
   updateJob,
   isPending,
+  cookieRows,
+  validateBrowserSession,
   type Job,
 } from "./core";
 import {
@@ -396,6 +398,11 @@ async function invoke(
         typeof options.per_item_quality === "object"
       )
         payload.per_item_quality = options.per_item_quality;
+      if (options.browser_session !== undefined) {
+        if (sender.tab?.id == null || sender.frameId !== 0 || !/^https?:\/\//.test(sender.url || ""))
+          fail("Browser data can only be sent from the page being captured.");
+        payload.browser_session = validateBrowserSession(options.browser_session, args[1], sender.url!);
+      }
       data = await api(config, `${a}/captures`, "POST", payload);
       await recordJob(config, data, sender.tab?.id);
       return data;
@@ -578,6 +585,23 @@ async function handle(message: any, sender: chrome.runtime.MessageSender) {
     case "CAPTURE_CONTEXT": {
       const config = await connected();
       return { archiveId: config.archiveId };
+    }
+    case "BROWSER_SESSION": {
+      // authorizeMessage guarantees: top-frame http(s) content sender with a tab id.
+      const pageUrl = sender.url!;
+      const pageHost = new URL(pageUrl).hostname;
+      const granted = await chrome.permissions.contains({
+        permissions: ["cookies"],
+        origins: [`https://${pageHost}/*`, `http://${pageHost}/*`],
+      });
+      if (!granted || !chrome.cookies) return { cookieAccess: "missing", cookies: [] };
+      const stores = await chrome.cookies.getAllCookieStores();
+      const storeId = stores.find((store) => store.tabIds.includes(sender.tab!.id!))?.id;
+      const list = await chrome.cookies.getAll({
+        url: pageUrl,
+        ...(storeId ? { storeId } : {}),
+      });
+      return { cookieAccess: "granted", cookies: cookieRows(list) };
     }
     case "CONTEXT_TARGET":
       // Context snapshots stay in their content document, rather than in this
