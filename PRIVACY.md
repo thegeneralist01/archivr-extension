@@ -32,6 +32,7 @@ Bundled JavaScript, styles, images and fonts load locally. Visiting a website an
 | `cookies` (optional) | Read the current page's cookies when you capture with "Use my cookies"; requested once from settings together with access to http/https sites |
 
 Chrome host grants are host/scheme based, while the worker additionally pins network requests to the exact configured origin, including its port. The manifest lists broad optional host patterns so different self-hosted servers can be selected; access is requested when you connect.
+Removing cookie access in settings revokes the optional `cookies` permission and its HTTP/HTTPS all-site grants. The grant for your configured Archivr server remains available for normal extension requests.
 
 ## Disconnecting and removing data
 

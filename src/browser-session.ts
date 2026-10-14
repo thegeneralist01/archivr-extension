@@ -1,4 +1,4 @@
-import { isSocialHost, sessionAppliesTo, hasLoneSurrogate } from "./core";
+import { isSocialHost, sessionAppliesTo, storageAppliesTo, hasLoneSurrogate } from "./core";
 import { send } from "./bridge";
 
 /**
@@ -35,6 +35,7 @@ export function createBrowserSession() {
     host,
     defaults: { cookies: !social, localStorage: !social },
     appliesTo: (locator: string) => sessionAppliesTo(pageUrl, locator),
+    storageAppliesTo: (locator: string) => storageAppliesTo(pageUrl, locator),
     load: async () => {
       const cookies = await send("BROWSER_SESSION");
       return { ...cookies, localStorage: readLocalStorage() };

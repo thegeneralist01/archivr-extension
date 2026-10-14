@@ -217,6 +217,7 @@ test("worker initialization recovers an interrupted mint before returning status
 import {
   isSocialHost,
   sessionAppliesTo,
+  storageAppliesTo,
   validateBrowserSession,
   cookieRows,
 } from "../src/core";
@@ -249,6 +250,13 @@ test("sessionAppliesTo mirrors server applicability rules", () => {
   expect(sessionAppliesTo("https://www.youtube.com/watch", "https://www.youtube.com/watch")).toBe(true);
 });
 
+test("storageAppliesTo requires the exact page origin", () => {
+  expect(storageAppliesTo("https://example.com:8443/a", "https://example.com:8443/b")).toBe(true);
+  expect(storageAppliesTo("https://example.com:8443/a", "https://example.com/b")).toBe(false);
+  expect(storageAppliesTo("https://example.com:8443/a", "http://example.com:8443/b")).toBe(false);
+  expect(storageAppliesTo("https://x.com/a", "x:tweet:123456789012345678")).toBe(false);
+});
+
 test("validateBrowserSession rejects cross-origin url", () => {
   expect(() =>
     validateBrowserSession(
@@ -257,6 +265,14 @@ test("validateBrowserSession rejects cross-origin url", () => {
       "https://example.com/page",
     )
   ).toThrow("Browser data does not match this page.");
+});
+
+test("validateBrowserSession rejects localStorage for a different port while allowing cookies", () => {
+  const session = { url: "https://example.com/a", cookies: { session: "abc" }, local_storage: { pref: "dark" } };
+  expect(() => validateBrowserSession(session, "https://example.com:8443/b", "https://example.com/a"))
+    .toThrow("same origin");
+  expect(validateBrowserSession({ ...session, local_storage: {} }, "https://example.com:8443/b", "https://example.com/a").cookies.session)
+    .toBe("abc");
 });
 
 test("validateBrowserSession rejects non-object value", () => {
@@ -292,6 +308,18 @@ test("validateBrowserSession returns only copied string props", () => {
   expect(result.cookies).toEqual({ session: "abc" });
   expect(result.local_storage).toEqual({ pref: "dark" });
   expect(Object.keys(result)).not.toContain("extra_field");
+});
+
+test("validateBrowserSession keeps own __proto__ storage and cookie keys", () => {
+  const result = validateBrowserSession(
+    JSON.parse('{"url":"https://example.com/page","cookies":{"__proto__":"cookie"},"local_storage":{"__proto__":"stored"}}'),
+    "https://example.com/a",
+    "https://example.com/page",
+  );
+  expect(Object.keys(result.cookies)).toEqual(["__proto__"]);
+  expect(Object.keys(result.local_storage)).toEqual(["__proto__"]);
+  expect(result.cookies["__proto__"]).toBe("cookie");
+  expect(result.local_storage["__proto__"]).toBe("stored");
 });
 
 test("cookieRows deduplicates by name keeping first occurrence", () => {

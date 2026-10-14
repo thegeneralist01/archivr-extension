@@ -41,7 +41,11 @@ function CookieAccessSection({ config, busy, act }: CookieAccessProps) {
 
   const revoke = () =>
     act(async () => {
-      await chrome.permissions.remove({ permissions: ["cookies"] });
+      const removed = await chrome.permissions.remove({
+        permissions: ["cookies"],
+        origins: ["http://*/*", "https://*/*"],
+      });
+      if (!removed) throw new Error("Cookie access could not be removed.");
       setCookieAccess(false);
     });
 

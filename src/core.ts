@@ -289,6 +289,17 @@ export function sessionAppliesTo(pageUrl: string, locator: string): boolean {
   }
 }
 
+/** localStorage is isolated by scheme, host, and port, unlike cookies. */
+export function storageAppliesTo(pageUrl: string, locator: string): boolean {
+  try {
+    const page = new URL(pageUrl);
+    const target = new URL(locator);
+    return ["http:", "https:"].includes(target.protocol) && page.origin === target.origin;
+  } catch {
+    return false;
+  }
+}
+
 // ── Wire limits (mirrored from browser_session.rs and frontend/src/browserData.js) ──
 const BS_MAX_COOKIES = 300;
 const BS_MAX_COOKIE_NAME_BYTES = 256;
@@ -346,7 +357,7 @@ export function validateBrowserSession(
 
   // cookies
   const rawCookies = v["cookies"];
-  const cookies: Record<string, string> = {};
+  const cookies: Record<string, string> = Object.create(null);
   if (rawCookies !== undefined && rawCookies !== null) {
     if (typeof rawCookies !== "object" || Array.isArray(rawCookies)) {
       throw new Error("Invalid browser data.");
@@ -378,13 +389,16 @@ export function validateBrowserSession(
 
   // local_storage
   const rawStorage = v["local_storage"];
-  const local_storage: Record<string, string> = {};
+  const local_storage: Record<string, string> = Object.create(null);
   if (rawStorage !== undefined && rawStorage !== null) {
     if (typeof rawStorage !== "object" || Array.isArray(rawStorage)) {
       throw new Error("Invalid browser data.");
     }
     const storageMap = rawStorage as Record<string, unknown>;
     const keys = Object.keys(storageMap);
+    if (keys.length > 0 && !storageAppliesTo(url, locator)) {
+      throw new Error("Browser localStorage requires the same origin as the capture URL.");
+    }
     if (keys.length > BS_MAX_STORAGE_ITEMS) {
       throw new Error("Browser data is too large.");
     }
