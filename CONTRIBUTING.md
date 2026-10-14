@@ -15,7 +15,7 @@ bun run test:browser
 bun run test:ui
 ```
 
-CI uses Bun **1.3.14** and pins the shared source to Archivr commit `3b748fb1d7f7c8daff0d3e8d934c972081381af9`. To reproduce it locally, check out that commit in your companion checkout after preserving any local work. The pin lives in `.github/workflows/ci.yml`; update it deliberately with compatibility validation.
+CI uses Bun **1.3.14** and pins the shared source to the Archivr commit named in `.github/workflows/ci.yml`. To reproduce it locally, check out that commit in your companion checkout after preserving any local work. Update the pin deliberately with compatibility validation.
 
 ```sh
 bun run dev  # rebuilds when extension/shared frontend source changes
