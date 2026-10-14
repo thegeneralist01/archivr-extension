@@ -21,6 +21,7 @@
     "https://youtu.be/*"
   ],
   "optional_host_permissions": ["http://*/*", "https://*/*"],
+  "optional_permissions": ["cookies"],
   "background": { "service_worker": "background.js", "type": "module" },
   "action": {
     "default_title": "Archivr",

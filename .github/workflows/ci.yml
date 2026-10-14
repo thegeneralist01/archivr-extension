@@ -30,7 +30,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: thegeneralist01/archivr
-          ref: 3b748fb1d7f7c8daff0d3e8d934c972081381af9
+          ref: 19718cee2247b6ed77321a3a2ae269abd3e72db0
           path: archivr
           persist-credentials: false
       - name: Install Bun

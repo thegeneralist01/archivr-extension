@@ -50,7 +50,7 @@ For user-facing behavior, capture options, server API contracts, shared UI, perm
 
 - The worker owns credentials. Keep storage at `TRUSTED_CONTEXTS`; never expose API tokens through STATUS, CAPTURE_CONTEXT, content messages, logs, screenshots, or fixtures.
 - Validate message sender ID, extension-page URL or top-level content context, method allowlist and arguments. Do not add an arbitrary fetch bridge.
-- Pin requests to the configured origin and selected archive; omit cookies and reject redirects. No cross-site cookie copying.
+- Pin requests to the configured origin and selected archive; omit cookies and reject redirects. Page cookies/localStorage are sent only from the in-page dialog's "Use my cookies"/"Include localStorage" controls, read only for the sender tab's own top-frame page (cookies in the tab's own cookie store), validated by the worker, sent only in that capture's POST body to the configured origin, and never stored or logged by the extension or persisted by the server. The Archivr fetch itself still omits cookies.
 - Pair through the logged-in server tab in the isolated world. Interrupted token creation needs explicit recovery; captures and token minting are never automatically retried.
 - X capture requires the fresh clicked document’s own post/video owner. Navigation, stale snapshots, poster images and detached/re-owned players must not reuse an earlier target.
 - The injected X action is limited to the recognized English video menu after a trusted video click; do not alter unrelated/native menus or add permanent page buttons.

@@ -13,6 +13,7 @@ import {
   type Notice,
   type NoticeInput,
 } from "./notifications";
+import { createBrowserSession } from "./browser-session";
 const css =
   `:host{all:initial;position:fixed;inset:0;z-index:2147483647;pointer-events:none}` +
   toShadowCss(sharedStyles) +
@@ -66,6 +67,8 @@ export async function showDialog(items: any[], requestKey: string) {
 function DialogShell({ archiveId, items, requestKey }: any) {
   const [open, setOpen] = useState(true);
   const feedback = useCaptureNotifications(notify, dismiss);
+  // Create the browser session once per mount — stable across re-renders.
+  const [browserSession] = useState(() => createBrowserSession());
   return (
     <CaptureDialog
       open={open}
@@ -77,6 +80,7 @@ function DialogShell({ archiveId, items, requestKey }: any) {
       allowFileUpload={false}
       onClose={() => setOpen(false)}
       onCaptured={() => {}}
+      browserSession={browserSession as unknown as null /* CaptureDialog .jsx infers null from default */}
       {...feedback}
     />
   );

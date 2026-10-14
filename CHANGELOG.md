@@ -4,6 +4,7 @@ No public release has been published yet. Version 0.1.4 is the current unpacked 
 
 ## Unreleased
 
+- Optional browser cookie and localStorage capture from the in-page dialog, with editable values and a settings permission grant. Cookie use defaults on for ordinary sites and off for social sites; localStorage is limited to the current page origin.
 - Repository documentation, agent instructions, contributor/security/privacy guides and contribution templates.
 - Reproducible CI against a pinned shared frontend revision.
 - MIT and third-party notices included in packaged builds.
