@@ -31,7 +31,7 @@ native or recognized X menu     shared CaptureDialog in closed ShadowRoot
 5. Explicit submission creates a job saved with its origin/archive identity. Worker alarms resume polling after the UI closes or worker sleeps.
 6. Notifications, popup history and the toolbar badge report progress/errors; opening a job uses its saved archive.
 
-No arbitrary URL fetch bridge exists. API paths are allowlisted, requests omit cookies and reject redirects, and content scripts cannot access the bearer token. Capture POSTs are not automatically retried. Page cookies/localStorage are forwarded only via the in-page dialog's "Use my cookies"/"Include localStorage" controls: read for the sender tab's own top-frame page, validated by the worker, sent only in that capture's POST body to the configured origin, and never stored or logged by the extension. Cookies may accompany a same-host capture; localStorage accompanies only a capture of the page's exact origin (scheme, host, and port).
+No arbitrary URL fetch bridge exists. API paths are allowlisted, requests omit cookies and reject redirects, and content scripts cannot access the bearer token. Capture POSTs are not automatically retried. Page cookies/localStorage are forwarded only via the in-page dialog's "Use my cookies"/"Include localStorage" controls: read for the sender tab's own top-frame page, validated by the worker, sent only in that capture's POST body to the configured origin, and never stored or logged by the extension. The worker reads unpartitioned cookies and, when supported, cookies for that tab's top-frame partition from the tab's cookie store. Cookies may accompany a same-host capture; localStorage accompanies only a capture of the page's exact origin (scheme, host, and port).
 
 ## UI and build
 

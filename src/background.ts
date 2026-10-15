@@ -10,10 +10,10 @@ import {
   authorizeMessage,
   updateJob,
   isPending,
-  cookieRows,
   validateBrowserSession,
   type Job,
 } from "./core";
+import { readPageCookies, type PageCookieApi } from "./browser-cookies";
 import {
   contextSnapshotForPage,
   xMediaMenuLocator,
@@ -597,11 +597,13 @@ async function handle(message: any, sender: chrome.runtime.MessageSender) {
       if (!granted || !chrome.cookies) return { cookieAccess: "missing", cookies: [] };
       const stores = await chrome.cookies.getAllCookieStores();
       const storeId = stores.find((store) => store.tabIds.includes(sender.tab!.id!))?.id;
-      const list = await chrome.cookies.getAll({
-        url: pageUrl,
-        ...(storeId ? { storeId } : {}),
-      });
-      return { cookieAccess: "granted", cookies: cookieRows(list) };
+      const list = await readPageCookies(
+        chrome.cookies as PageCookieApi,
+        pageUrl,
+        sender.tab!.id!,
+        storeId,
+      );
+      return { cookieAccess: "granted", cookies: list };
     }
     case "CONTEXT_TARGET":
       // Context snapshots stay in their content document, rather than in this

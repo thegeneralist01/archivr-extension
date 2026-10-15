@@ -12,7 +12,7 @@ In-page right-click snapshots are short-lived document state used to resolve the
 
 ## Data sent
 
-Pairing uses your existing login in a same-origin server tab to create the named extension token. Worker requests use a bearer token with cookies omitted and redirects rejected. If you grant cookie access from extension settings, the in-page Capture dialog reads the current page's cookies and localStorage and may include them in a capture POST to your configured Archivr server; they are never stored or logged by the extension.
+Pairing uses your existing login in a same-origin server tab to create the named extension token. Worker requests use a bearer token with cookies omitted and redirects rejected. If you grant cookie access from extension settings, the in-page Capture dialog reads the current page's cookies and localStorage and may include them in a capture POST to your configured Archivr server; they are never stored or logged by the extension. On Chrome 132 and newer, the cookie list also includes cookies partitioned to that tab's top-level site. Older browsers continue to provide unpartitioned cookies only. Other sites' cookie partitions are not read.
 
 Captures send the reviewed URL/source locator, title/body for text, selected quality and options to your configured Archivr server. Job polling sends that capture’s job identity to the same server. Channels/playlists open its capture UI prefilled. Manual title generation sends the text to your server; its configured provider may process it under that provider’s policy.
 
