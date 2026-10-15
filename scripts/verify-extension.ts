@@ -1,9 +1,72 @@
 // Exercise the packaged extension's real service worker and content script APIs.
 import { chromium } from "playwright";
-import { mkdtemp, rm } from "node:fs/promises";
+import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { mkdir } from "node:fs/promises";
+
+async function verifyPartitionedCookies(extension: string) {
+  // Keep production permissions intact: this disposable copy grants the
+  // optional cookie permission so Chromium can exercise the real worker.
+  const root = await mkdtemp(path.join(tmpdir(), "archivr-cookie-smoke-"));
+  const fixtureExtension = path.join(root, "extension");
+  try {
+    await cp(extension, fixtureExtension, { recursive: true });
+    const manifestPath = path.join(fixtureExtension, "manifest.json");
+    const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+    manifest.permissions.push("cookies");
+    manifest.host_permissions.push("http://*/*", "https://*/*");
+    manifest.optional_permissions = manifest.optional_permissions.filter((permission: string) => permission !== "cookies");
+    manifest.optional_host_permissions = [];
+    await writeFile(manifestPath, JSON.stringify(manifest));
+
+    const context = await chromium.launchPersistentContext(path.join(root, "profile"), {
+      channel: "chromium",
+      headless: true,
+      args: [
+        `--disable-extensions-except=${fixtureExtension}`,
+        `--load-extension=${fixtureExtension}`,
+      ],
+    });
+    try {
+      const worker = context.serviceWorkers()[0] || await context.waitForEvent("serviceworker");
+      await context.route("https://x.com/**", (route) => route.fulfill({
+        contentType: "text/html", body: "<html><body>Cookie fixture</body></html>",
+      }));
+      const page = await context.newPage();
+      await page.goto("https://x.com/fixture");
+      const result = await worker.evaluate(async () => {
+        const [tab] = await chrome.tabs.query({ url: "https://x.com/fixture" });
+        const url = tab.url!;
+        const { partitionKey } = await (chrome.cookies as any).getPartitionKey({ tabId: tab.id!, frameId: 0 });
+        await chrome.cookies.set({ url, name: "mz_access", value: "fixture", secure: true, partitionKey });
+        await chrome.cookies.set({ url, name: "ordinary", value: "fixture", secure: true });
+        await chrome.cookies.set({
+          url, name: "other_partition", value: "fixture", secure: true,
+          partitionKey: { topLevelSite: "https://other.example", hasCrossSiteAncestor: true },
+        });
+        const [injection] = await chrome.scripting.executeScript({
+          target: { tabId: tab.id! },
+          func: () => chrome.runtime.sendMessage({ type: "BROWSER_SESSION" }),
+        });
+        const response = injection.result;
+        return {
+          ok: response?.ok,
+          access: response?.data?.cookieAccess,
+          names: response?.data?.cookies?.map((cookie: any) => cookie.name),
+        };
+      });
+      if (!result.ok || result.access !== "granted" ||
+          JSON.stringify(result.names) !== JSON.stringify(["mz_access", "ordinary"])) {
+        throw new Error(`Partitioned page cookie fixture failed: ${JSON.stringify(result)}`);
+      }
+    } finally {
+      await context.close();
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+}
 await mkdir("artifacts/ui", { recursive: true });
 const profile = await mkdtemp(path.join(tmpdir(), "archivr-ui-smoke-"));
 const extension = path.resolve("dist");
@@ -111,8 +174,9 @@ try {
   });
   await settings.screenshot({ path: "artifacts/ui/packaged-welcome.png" });
   if (errors.length) throw new Error(errors.join("\n"));
+  await verifyPartitionedCookies(extension);
   console.log(
-    "Packaged Chromium smoke passed: real tab activation/navigation menu updates, isolated notifications and local fonts under font-src 'none'.",
+    "Packaged Chromium smoke passed: tab menus, isolated notifications, local fonts and top-frame partitioned cookies.",
   );
 } finally {
   await context.close();
